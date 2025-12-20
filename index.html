@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>志愿者管理系统</title>
+    <link rel="stylesheet" href="src/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>志愿者管理系统</h1>
+            <nav>
+                <ul>
+                    <li><a href="#home">首页</a></li>
+                    <li><a href="#activities">志愿活动</a></li>
+                    <li><a href="#training">培训课程</a></li>
+                    <li><a href="#profile">个人中心</a></li>
+                    <li><a href="#login" id="loginBtn">登录</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="home" class="container">
+            <h2>欢迎来到志愿者管理系统</h2>
+            <p>在这里，您可以浏览、报名志愿活动，参加培训课程，记录志愿时长</p>
+        </section>
+
+        <section id="activities" class="container">
+            <h2>志愿活动</h2>
+            <div class="activity-list" id="activityList">
+                <!-- 活动列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="training" class="container">
+            <h2>培训课程</h2>
+            <div class="training-list" id="trainingList">
+                <!-- 培训列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="profile" class="container">
+            <h2>个人中心</h2>
+            <div id="profileContent">
+                <!-- 个人信息将通过JavaScript动态生成 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>登录</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmailPhone">邮箱/手机号</label>
+                    <input type="text" id="loginEmailPhone" name="emailPhone" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">登录</button>
+                    <p class="switch-form">还没有账号？<a href="#" id="showRegister">立即注册</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>注册</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerName">姓名</label>
+                    <input type="text" id="registerName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPhone">手机号</label>
+                    <input type="text" id="registerPhone" name="phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">邮箱</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">密码</label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerRole">角色</label>
+                    <select id="registerRole" name="role">
+                        <option value="volunteer">志愿者</option>
+                        <option value="organizer">组织方</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">注册</button>
+                    <p class="switch-form">已有账号？<a href="#" id="showLogin">立即登录</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 活动详情模态框 -->
+    <div id="activityDetailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="activityDetailContent">
+                <!-- 活动详情将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 志愿者管理系统 版权所有</p>
+        </div>
+    </footer>
+
+    <script src="src/js/main.js"></script>
+    <script src="src/js/api.js"></script>
+</body>
+</html>
