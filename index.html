@@ -7,41 +7,207 @@
     <link rel="stylesheet" href="src/css/style.css">
 </head>
 <body>
-    <header>
-        <div class="container">
+    <!-- 登录界面 -->
+    <div id="login-page" class="login-page">
+        <div class="login-container">
             <h1>志愿者管理系统</h1>
-            <nav>
-                <ul>
-                    <li><a href="#home">首页</a></li>
-                    <li><a href="#activities">志愿活动</a></li>
-                    <li><a href="#training">培训课程</a></li>
-                    <li><a href="#profile">个人中心</a></li>
-                    <li><a href="#login" id="loginBtn">登录</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
-
-    <main>
-        <section id="home" class="container">
-            <h2>欢迎来到志愿者管理系统</h2>
-            <p>在这里，您可以浏览、报名志愿活动，参加培训课程，记录志愿时长</p>
-        </section>
-
-        <section id="activities" class="container">
-            <h2>志愿活动</h2>
-            <div class="activity-list" id="activityList">
-                <!-- 活动列表将通过JavaScript动态生成 -->
+            <div class="login-box">
+                <h2>登录</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email-phone">邮箱/手机号</label>
+                        <input type="text" id="login-email-phone" name="emailPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">密码</label>
+                        <input type="password" id="login-password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-role">选择角色</label>
+                        <select id="login-role" name="role">
+                            <option value="volunteer">志愿者</option>
+                            <option value="organizer">组织方</option>
+                            <option value="admin">管理方</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">登录</button>
+                </form>
+                <div class="login-footer">
+                    <p>还没有账号？ <a href="#" id="show-register">立即注册</a></p>
+                </div>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <section id="training" class="container">
+    <!-- 注册界面 -->
+    <div id="register-page" class="login-page" style="display: none;">
+        <div class="login-container">
+            <h1>志愿者管理系统</h1>
+            <div class="login-box">
+                <h2>注册</h2>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="register-name">姓名</label>
+                        <input type="text" id="register-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-phone">手机号</label>
+                        <input type="tel" id="register-phone" name="phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">邮箱</label>
+                        <input type="email" id="register-email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">密码</label>
+                        <input type="password" id="register-password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-role">选择角色</label>
+                        <select id="register-role" name="role">
+                            <option value="volunteer">志愿者</option>
+                            <option value="organizer">组织方</option>
+                            <option value="admin">管理方</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">注册</button>
+                </form>
+                <div class="login-footer">
+                    <p>已有账号？ <a href="#" id="show-login">返回登录</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主系统界面 -->
+    <div id="main-system" style="display: none;">
+        <header>
+            <div class="container">
+                <h1>志愿者管理系统</h1>
+                <nav>
+                    <ul>
+                        <li><a href="#home">首页</a></li>
+                        <!-- 志愿者导航 -->
+                        <li class="volunteer-nav"><a href="#activities">志愿活动</a></li>
+                        <li class="volunteer-nav"><a href="#training">培训课程</a></li>
+                        <!-- 组织方导航 -->
+                        <li class="organizer-nav" style="display: none;"><a href="#organizer-dashboard">仪表盘</a></li>
+                        <li class="organizer-nav" style="display: none;"><a href="#organizer-activities">我的活动</a></li>
+                        <li class="organizer-nav" style="display: none;"><a href="#organizer-trainings">我的培训</a></li>
+                        <li class="organizer-nav" style="display: none;"><a href="#organizer-settings">组织设置</a></li>
+                        <!-- 管理方导航 -->
+                        <li class="admin-nav" style="display: none;"><a href="#admin-dashboard">仪表盘</a></li>
+                        <li class="admin-nav" style="display: none;"><a href="#admin-organizations">组织管理</a></li>
+                        <li class="admin-nav" style="display: none;"><a href="#admin-users">用户管理</a></li>
+                        <li class="admin-nav" style="display: none;"><a href="#admin-activities-review">活动审查</a></li>
+                        <li class="admin-nav" style="display: none;"><a href="#admin-system-settings">系统设置</a></li>
+                        <li class="admin-nav" style="display: none;"><a href="#admin-data-management">数据管理</a></li>
+                        <!-- 通用导航 -->
+                        <li><a href="#profile">个人中心</a></li>
+                        <li><a href="#login" id="loginBtn">登录</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <!-- 首页 - 所有角色可见 -->
+            <section id="home" class="container">
+                <h2>欢迎来到志愿者管理系统</h2>
+                <p>在这里，您可以浏览、报名志愿活动，参加培训课程，记录志愿时长</p>
+            </section>
+
+            <!-- 志愿者功能 - 志愿者角色可见 -->
+            <section id="activities" class="container volunteer-section">
+                <h2>志愿活动</h2>
+                <div class="activity-list" id="activityList">
+                    <!-- 活动列表将通过JavaScript动态生成 -->
+                </div>
+            </section>
+
+            <section id="training" class="container volunteer-section">
             <h2>培训课程</h2>
             <div class="training-list" id="trainingList">
                 <!-- 培训列表将通过JavaScript动态生成 -->
             </div>
         </section>
 
+        <!-- 组织方功能 - 组织方角色可见 -->
+        <section id="organizer-dashboard" class="container organizer-section" style="display: none;">
+            <h2>组织方仪表盘</h2>
+            <div class="dashboard-stats">
+                <!-- 组织方统计数据将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="organizer-activities" class="container organizer-section" style="display: none;">
+            <h2>我的活动</h2>
+            <div class="activity-list" id="organizerActivityList">
+                <!-- 组织方活动列表将通过JavaScript动态生成 -->
+            </div>
+            <button class="btn btn-primary" id="createActivityBtn">创建新活动</button>
+        </section>
+
+        <section id="organizer-trainings" class="container organizer-section" style="display: none;">
+            <h2>我的培训</h2>
+            <div class="training-list" id="organizerTrainingList">
+                <!-- 组织方培训列表将通过JavaScript动态生成 -->
+            </div>
+            <button class="btn btn-primary" id="createTrainingBtn">创建新培训</button>
+        </section>
+
+        <!-- 组织设置 - 组织方角色可见 -->
+        <section id="organizer-settings" class="container organizer-section" style="display: none;">
+            <h2>组织设置</h2>
+            <div id="organizerSettingsContent">
+                <!-- 组织信息将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 管理方功能 - 管理方角色可见 -->
+        <section id="admin-dashboard" class="container admin-section" style="display: none;">
+            <h2>管理方仪表盘</h2>
+            <div class="dashboard-stats">
+                <!-- 管理方统计数据将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="admin-organizations" class="container admin-section" style="display: none;">
+            <h2>组织管理</h2>
+            <div class="organization-list" id="organizationList">
+                <!-- 组织列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="admin-users" class="container admin-section" style="display: none;">
+            <h2>用户管理</h2>
+            <div class="user-list" id="userList">
+                <!-- 用户列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="admin-activities-review" class="container admin-section" style="display: none;">
+            <h2>活动内容审查与监督</h2>
+            <div class="activity-review-list" id="activityReviewList">
+                <!-- 待审查活动列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="admin-system-settings" class="container admin-section" style="display: none;">
+            <h2>系统参数调配</h2>
+            <div class="system-settings-content" id="systemSettingsContent">
+                <!-- 系统参数设置将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <section id="admin-data-management" class="container admin-section" style="display: none;">
+            <h2>数据备份和统计</h2>
+            <div class="data-management-content" id="dataManagementContent">
+                <!-- 数据备份和统计功能将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 个人中心 - 所有角色可见，但内容不同 -->
         <section id="profile" class="container">
             <h2>个人中心</h2>
             <div id="profileContent">
@@ -117,6 +283,74 @@
                 <!-- 活动详情将通过JavaScript动态生成 -->
             </div>
         </div>
+    </div>
+    
+    <!-- 个人信息编辑模态框 -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>编辑个人信息</h2>
+            <form id="editProfileForm">
+                <div class="form-group">
+                    <label for="editName">姓名</label>
+                    <input type="text" id="editName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="editGender">性别</label>
+                    <select id="editGender" name="gender">
+                        <option value="male">男</option>
+                        <option value="female">女</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editAge">年龄</label>
+                    <input type="number" id="editAge" name="age" min="1" max="150">
+                </div>
+                <div class="form-group">
+                    <label for="editPhone">手机号</label>
+                    <input type="tel" id="editPhone" name="phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="editEmail">邮箱</label>
+                    <input type="email" id="editEmail" name="email" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" id="cancelEdit">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 扫码签到/签退模态框 -->
+    <div id="scanModal" class="modal">
+        <div class="modal-content scan-modal">
+            <span class="close">&times;</span>
+            <h2>扫码签到/签退</h2>
+            <div class="scan-container">
+                <div id="scanPreview" class="scan-preview"></div>
+                <div class="scan-line"></div>
+            </div>
+            <div class="scan-info">
+                <p id="scanStatus">请将二维码对准扫描框</p>
+                <button id="startScanBtn" class="btn btn-primary">开始扫描</button>
+                <button id="stopScanBtn" class="btn btn-secondary" style="display: none;">停止扫描</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 活动记录模态框 -->
+    <div id="activityRecordsModal" class="modal">
+        <div class="modal-content activity-records-modal" role="dialog" aria-labelledby="activityRecordsTitle" aria-modal="true">
+            <span class="close">&times;</span>
+            <h2 id="activityRecordsTitle">我的活动记录</h2>
+            <div id="activityRecordsContent">
+                <!-- 活动记录内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+        </main>
     </div>
 
     <footer>

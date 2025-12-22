@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #ffebee;
+            border-color: #f44336;
+        }
+        .success {
+            background-color: #e8f5e8;
+            border-color: #4caf50;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>API测试页面</h1>
+    
+    <div>
+        <button onclick="testActivitiesAPI()">测试 /api/user/activities</button>
+    </div>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        // 生成JWT令牌
+        function generateJWTToken() {
+            const secret = 'woshiguozitong123456';
+            const header = {
+                alg: 'HS256',
+                typ: 'JWT'
+            };
+            
+            const payload = {
+                id: 1,
+                name: '测试用户',
+                email: 'test@example.com',
+                role: 'volunteer',
+                iat: Math.floor(Date.now() / 1000),
+                exp: Math.floor(Date.now() / 1000) + 3600
+            };
+            
+            const base64UrlEncode = (str) => {
+                return btoa(JSON.stringify(str))
+                    .replace(/=/g, '')
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_');
+            };
+            
+            const encodedHeader = base64UrlEncode(header);
+            const encodedPayload = base64UrlEncode(payload);
+            
+            // 简化的签名生成，仅用于测试
+            const signatureInput = encodedHeader + '.' + encodedPayload;
+            const generateSimpleSignature = (input, secret) => {
+                let hash = 0;
+                for (let i = 0; i < input.length; i++) {
+                    const char = input.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return btoa(hash.toString(16).padStart(64, '0'))
+                    .replace(/=/g, '')
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_');
+            };
+            
+            const signature = generateSimpleSignature(signatureInput, secret);
+            
+            return encodedHeader + '.' + encodedPayload + '.' + signature;
+        }
+        
+        // 测试活动记录API
+        async function testActivitiesAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>发送请求中...</p>';
+            resultDiv.className = 'result';
+            
+            try {
+                const token = generateJWTToken();
+                const response = await fetch('http://localhost:3001/api/user/activities', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                resultDiv.innerHTML = `
+                    <h3>API响应结果</h3>
+                    <p>状态码: ${response.status}</p>
+                    <p>状态文本: ${response.statusText}</p>
+                    <h4>响应数据:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>请求失败</h3>
+                    <p>错误信息: ${error.message}</p>
+                    <p>错误堆栈: ${error.stack}</p>
+                `;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html>

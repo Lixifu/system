@@ -1,20 +1,26 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
+const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 // 用户注册
 router.post('/register', async (req, res) => {
     try {
         // 检查用户是否已存在
-        const existingUser = await User.findOne({ $or: [{ email: req.body.email }, { phone: req.body.phone }] });
+        const existingUser = await User.findOne({
+            where: {
+                [Op.or]: [{ email: req.body.email }, { phone: req.body.phone }]
+            }
+        });
         if (existingUser) {
-            return res.status(400).json({ message: '用户已存在' });
+            return errorResponse(res, '用户已存在', 400);
         }
 
         // 创建新用户
-        const user = new User({
+        const user = await User.create({
             name: req.body.name,
             email: req.body.email,
             phone: req.body.phone,
@@ -22,59 +28,76 @@ router.post('/register', async (req, res) => {
             role: req.body.role || 'volunteer'
         });
 
-        // 保存用户
-        await user.save();
-
         // 生成JWT令牌
-        const token = jwt.sign({ id: user._id, role: user.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+        const token = jwt.sign({ id: user.id, role: user.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
-        res.status(201).json({
-            message: '注册成功',
+        const responseData = {
             token: token,
             user: {
-                id: user._id,
+                id: user.id,
                 name: user.name,
                 email: user.email,
                 phone: user.phone,
                 role: user.role
             }
-        });
+        };
+
+        successResponse(res, responseData, '注册成功', 201);
     } catch (error) {
-        res.status(500).json({ message: '注册失败', error: error.message });
+        errorResponse(res, '注册失败', 500, { error: error.message });
     }
 });
 
 // 用户登录
 router.post('/login', async (req, res) => {
     try {
+        // 构建查询条件
+        // 使用OR条件，只需要匹配邮箱或手机号中的一个即可
+        const whereCondition = {
+            [Op.or]: []
+        };
+        if (req.body.email) {
+            whereCondition[Op.or].push({ email: req.body.email });
+        }
+        if (req.body.phone) {
+            whereCondition[Op.or].push({ phone: req.body.phone });
+        }
+        
+        if (whereCondition[Op.or].length === 0) {
+            return errorResponse(res, '请提供邮箱或手机号', 400);
+        }
+
         // 查找用户
-        const user = await User.findOne({ $or: [{ email: req.body.email }, { phone: req.body.phone }] });
+        const user = await User.findOne({
+            where: whereCondition
+        });
         if (!user) {
-            return res.status(401).json({ message: '用户名或密码错误' });
+            return errorResponse(res, '用户名或密码错误', 401);
         }
 
         // 验证密码
         const isPasswordValid = await user.comparePassword(req.body.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ message: '用户名或密码错误' });
+            return errorResponse(res, '用户名或密码错误', 401);
         }
 
         // 生成JWT令牌
-        const token = jwt.sign({ id: user._id, role: user.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+        const token = jwt.sign({ id: user.id, role: user.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
-        res.status(200).json({
-            message: '登录成功',
+        const responseData = {
             token: token,
             user: {
-                id: user._id,
+                id: user.id,
                 name: user.name,
                 email: user.email,
                 phone: user.phone,
                 role: user.role
             }
-        });
+        };
+
+        successResponse(res, responseData, '登录成功');
     } catch (error) {
-        res.status(500).json({ message: '登录失败', error: error.message });
+        errorResponse(res, '登录失败', 500, { error: error.message });
     }
 });
 

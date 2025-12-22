@@ -1,13 +1,22 @@
 module.exports = {
     server: {
-        port: 3000,
+        port: 3001,
         host: 'localhost'
     },
     database: {
-        url: 'mongodb://localhost:27017/volunteer-management-system'
+      dialect: 'mysql',
+      host: 'localhost',
+      port: 3306,
+      username: 'root',      // 您的MySQL用户名
+      password: 'Woshiguozitong1', // 您的MySQL密码
+      database: 'volunteer_management_system',
+      timezone: '+08:00',
+       dialectOptions: {
+           charset: 'utf8mb4'
+       }
     },
     jwt: {
-        secret: 'your-secret-key',
+        secret: 'woshiguozitong123456',
         expiresIn: '1d'
     },
     bcrypt: {

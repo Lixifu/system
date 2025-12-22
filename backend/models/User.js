@@ -1,111 +1,105 @@
-const mongoose = require('mongoose');
+// 用户模型 - Sequelize
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
 const bcrypt = require('bcrypt');
 const config = require('../config/config');
 
-// 用户模型架构
-const userSchema = new mongoose.Schema({
+// 定义用户模型
+const User = sequelize.define('User', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
     name: {
-        type: String,
-        required: true,
-        trim: true
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        comment: '姓名'
     },
     phone: {
-        type: String,
-        required: true,
+        type: DataTypes.STRING(20),
+        allowNull: false,
         unique: true,
-        trim: true
+        comment: '手机号'
     },
     email: {
-        type: String,
-        required: true,
+        type: DataTypes.STRING(100),
+        allowNull: false,
         unique: true,
-        trim: true,
-        lowercase: true
+        comment: '邮箱'
     },
     password: {
-        type: String,
-        required: true
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        comment: '密码'
     },
     role: {
-        type: String,
-        enum: ['volunteer', 'organizer', 'admin'],
-        default: 'volunteer'
+        type: DataTypes.ENUM('volunteer', 'organizer', 'admin'),
+        defaultValue: 'volunteer',
+        comment: '角色'
     },
     gender: {
-        type: String,
-        enum: ['male', 'female', 'other'],
-        default: 'other'
+        type: DataTypes.ENUM('male', 'female', 'other'),
+        defaultValue: 'other',
+        comment: '性别'
     },
     age: {
-        type: Number,
-        min: 12,
-        max: 100
+        type: DataTypes.INTEGER,
+        comment: '年龄'
     },
-    organization: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Organization'
+    organizationId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'organization_id',
+        comment: '所属组织ID'
     },
     volunteerHours: {
-        type: Number,
-        default: 0
+        type: DataTypes.FLOAT,
+        defaultValue: 0,
+        field: 'volunteer_hours',
+        comment: '志愿时长'
     },
-    activities: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Activity'
-    }],
-    trainings: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Training'
-    }],
-    certificates: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Certificate'
-    }],
-    medals: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Medal'
-    }],
+    avatar: {
+        type: DataTypes.STRING(255),
+        comment: '用户头像URL'
+    },
     createdAt: {
-        type: Date,
-        default: Date.now
+        type: DataTypes.DATE,
+        field: 'created_at',
+        defaultValue: DataTypes.NOW
     },
     updatedAt: {
-        type: Date,
-        default: Date.now
+        type: DataTypes.DATE,
+        field: 'updated_at',
+        defaultValue: DataTypes.NOW
     }
+}, {
+    tableName: 'users',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    // 添加索引，提高查询性能
+    indexes: [
+        // 用于快速查询特定角色的用户
+        { fields: ['role'] },
+        // 用于快速查询特定组织的用户
+        { fields: ['organization_id'] },
+        // 用于快速按姓名搜索用户
+        { fields: ['name'] }
+    ]
 });
 
-// 密码加密中间件
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) {
-        return next();
-    }
-    
-    try {
+// 密码加密钩子
+User.beforeSave(async (user) => {
+    if (user.changed('password')) {
         const salt = await bcrypt.genSalt(config.bcrypt.saltRounds);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
+        user.password = await bcrypt.hash(user.password, salt);
     }
 });
 
 // 密码比较方法
-userSchema.methods.comparePassword = async function(candidatePassword) {
-    try {
-        return await bcrypt.compare(candidatePassword, this.password);
-    } catch (error) {
-        throw error;
-    }
+User.prototype.comparePassword = async function(candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
 };
-
-// 更新时间中间件
-userSchema.pre('updateOne', function(next) {
-    this.set({ updatedAt: Date.now() });
-    next();
-});
-
-// 创建用户模型
-const User = mongoose.model('User', userSchema);
 
 module.exports = User;

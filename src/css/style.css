@@ -132,6 +132,21 @@ section h2 {
     background-color: #229954;
 }
 
+.btn-secondary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #2980b9;
+}
+
+.btn-secondary.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .btn-danger {
     background-color: #e74c3c;
 }
@@ -142,8 +157,11 @@ section h2 {
 
 .activity-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-top: 15px;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .switch-form {
@@ -153,6 +171,53 @@ section h2 {
 
 .activity-detail {
     line-height: 1.8;
+}
+
+/* 仪表盘样式 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.stat-item {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stat-item h3 {
+    margin-bottom: 0.5rem;
+    color: #6c757d;
+    font-size: 1rem;
+    font-weight: normal;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #3498db;
+}
+
+/* 列表样式 */
+.organization-list, .user-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+/* 按钮样式 */
+#createActivityBtn, #createTrainingBtn {
+    margin-top: 1.5rem;
 }
 
 footer {
@@ -245,4 +310,727 @@ footer {
 
 #loginModal {
     display: none;
+}
+
+/* 登录页面样式 */
+.login-page {
+    width: 100%;
+    height: 100vh;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.login-container {
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+}
+
+.login-container h1 {
+    color: #2c3e50;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+}
+
+.login-box {
+    background-color: #fff;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.login-box h2 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.login-box form {
+    text-align: left;
+}
+
+.login-box .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.login-box .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.login-box .form-group input,
+.login-box .form-group select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.login-box .form-group input:focus,
+.login-box .form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.login-box .btn-block {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 6px;
+    background-color: #3498db;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.login-box .btn-block:hover {
+    background-color: #2980b9;
+}
+
+.login-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #666;
+}
+
+.login-footer a {
+    color: #3498db;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.login-footer a:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* 主系统界面显示时，隐藏登录页面 */
+#main-system.show {
+    display: block !important;
+}
+
+#main-system.show + #login-page {
+    display: none;
+}
+
+/* 志愿者信息表格样式 */
+.volunteers-section {
+    margin-top: 20px;
+}
+
+.volunteers-controls {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.filters select,
+.filters input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.filters select {
+    width: auto;
+}
+
+.filters input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin: 15px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.volunteers-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+}
+
+.volunteers-table th,
+.volunteers-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.volunteers-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.volunteers-table td {
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.volunteers-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.volunteers-table tr:last-child td {
+    border-bottom: none;
+}
+
+.volunteers-table .no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* 分页样式 */
+.pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.page-btn {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+/* 当page-btn与btn-secondary配合使用时的样式 */
+.btn-secondary.page-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-secondary.page-btn:hover:not(.disabled) {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}
+
+.page-btn.active {
+    background-color: #3498db;
+    color: #fff;
+    border-color: #3498db;
+}
+
+.page-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-ellipsis {
+    margin: 0 5px;
+    color: #666;
+}
+
+/* 模态框样式优化 */
+.modal-content {
+    max-height: 80vh;
+    overflow-y: auto;
+    width: 90%;
+    max-width: 900px;
+    padding: 20px;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+}
+
+.activity-detail p {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+/* 扫码功能样式 */
+.scan-modal .modal-content {
+    max-width: 600px;
+}
+
+.scan-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 20px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.scan-preview {
+    width: 100%;
+    height: 400px;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.scan-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scan-line {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background-color: #00ff00;
+    animation: scan 2s linear infinite;
+    z-index: 10;
+}
+
+@keyframes scan {
+    0% {
+        top: 20px;
+    }
+    50% {
+        top: calc(100% - 20px);
+    }
+    100% {
+        top: 20px;
+    }
+}
+
+.scan-info {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.scan-info #scanStatus {
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #333;
+}
+
+.scan-info button {
+    margin: 0 10px;
+}
+
+/* 报名申请列表样式 */
+.applications-container {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.applications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.application-item {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #3498db;
+}
+
+.application-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.application-header h4 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.application-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.application-status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.application-status.approved {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.application-status.rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.application-info {
+    margin-bottom: 15px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.application-info p {
+    margin: 5px 0;
+}
+
+.application-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.applications-container .filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.applications-container .filters select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.applications-container .filters button {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+/* 组织信息样式 */
+.organization-info {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.logo-preview {
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+    display: inline-block;
+    background-color: #f8f9fa;
+}
+
+.logo-preview img {
+    max-width: 200px;
+    max-height: 200px;
+    object-fit: contain;
+}
+
+/* 活动记录模态框样式 */
+.activity-records-modal .modal-content {
+    width: 90%;
+    max-width: 800px;
+    margin: 5% auto;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.activity-records-modal .modal-content h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#activityRecordsContent {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.activity-records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.activity-record-item {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-record-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.activity-record-item h5 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+.activity-record-item .activity-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.activity-record-item .activity-info p {
+    margin: 5px 0;
+    line-height: 1.5;
+}
+
+.activity-record-item .activity-description {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.activity-record-item .activity-participants {
+    margin: 15px 0;
+}
+
+.activity-record-item .participants-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.activity-record-item .participant-tag {
+    background-color: #3498db;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+}
+
+.activity-record-item .attachment-link {
+    display: inline-block;
+    margin: 5px 10px 5px 0;
+    padding: 5px 10px;
+    background-color: #27ae60;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.activity-record-item .attachment-link:hover {
+    background-color: #229954;
+    text-decoration: none;
+}
+
+.activity-record-item .activity-status {
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    display: inline-block;
+}
+
+.activity-records-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.loading-indicator {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(52, 152, 219, 0.3);
+    border-radius: 50%;
+    border-top-color: #3498db;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+        padding: 10px;
+    }
+    
+    .volunteers-controls,
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filters select,
+    .filters input {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .table-container {
+        font-size: 12px;
+    }
+    
+    .volunteers-table th,
+    .volunteers-table td {
+        padding: 8px 10px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: 15px;
+    }
+    
+    .activity-records-modal .modal-content {
+        width: 90%;
+        max-width: none;
+    }
+    
+    .activity-record-item .activity-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content h2 {
+        font-size: 1.5rem;
+    }
+    
+    header h1 {
+        display: block;
+        margin-bottom: 1rem;
+    }
+    
+    header nav ul li {
+        display: block;
+        margin: 0.5rem 0;
+    }
+    
+    .activity-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .activity-actions button {
+        margin-bottom: 0;
+    }
+    
+    .scan-container {
+        padding: 10px;
+    }
+    
+    .scan-preview {
+        height: 300px;
+    }
+    
+    .scan-line {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+    }
+    
+    @keyframes scan {
+        0% {
+            top: 10px;
+        }
+        50% {
+            top: calc(100% - 10px);
+        }
+        100% {
+            top: 10px;
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .volunteers-table {
+        font-size: 11px;
+    }
+    
+    .volunteers-table th,
+    .volunteers-table td {
+        padding: 6px 8px;
+    }
+    
+    .modal-content {
+        width: 98%;
+        padding: 10px;
+    }
+    
+    .scan-preview {
+        height: 250px;
+    }
 }

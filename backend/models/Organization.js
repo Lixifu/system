@@ -1,55 +1,69 @@
-const mongoose = require('mongoose');
+// 组织模型 - Sequelize
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
 
-// 组织模型架构
-const organizationSchema = new mongoose.Schema({
+// 定义组织模型
+const Organization = sequelize.define('Organization', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
     name: {
-        type: String,
-        required: true,
-        trim: true,
-        unique: true
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        unique: true,
+        comment: '组织名称'
     },
     department: {
-        type: String,
-        required: true,
-        trim: true
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        comment: '隶属部门'
     },
     contact: {
-        type: String,
-        required: true,
-        trim: true
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        comment: '联系方式'
     },
     address: {
-        type: String,
-        required: true,
-        trim: true
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        comment: '线下地点'
     },
     description: {
-        type: String,
-        required: true,
-        trim: true
+        type: DataTypes.TEXT,
+        allowNull: false,
+        comment: '组织描述'
     },
     status: {
-        type: String,
-        enum: ['pending', 'approved', 'rejected'],
-        default: 'pending'
+        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        defaultValue: 'pending',
+        comment: '组织状态'
+    },
+    logo: {
+        type: DataTypes.STRING(255),
+        comment: '组织logo URL'
+    },
+    images: {
+        type: DataTypes.JSON,
+        defaultValue: [],
+        comment: '组织图片URL列表'
     },
     createdAt: {
-        type: Date,
-        default: Date.now
+        type: DataTypes.DATE,
+        field: 'created_at',
+        defaultValue: DataTypes.NOW
     },
     updatedAt: {
-        type: Date,
-        default: Date.now
+        type: DataTypes.DATE,
+        field: 'updated_at',
+        defaultValue: DataTypes.NOW
     }
+}, {
+    tableName: 'organizations',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
 });
-
-// 更新时间中间件
-organizationSchema.pre('updateOne', function(next) {
-    this.set({ updatedAt: Date.now() });
-    next();
-});
-
-// 创建组织模型
-const Organization = mongoose.model('Organization', organizationSchema);
 
 module.exports = Organization;
