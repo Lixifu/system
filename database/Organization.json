@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "阳光志愿者协会",
+    "department": "民政部门",
+    "contact": "0754-88888888",
+    "address": "汕头市金平区中山路123号",
+    "description": "阳光志愿者协会是一个致力于为社区提供志愿服务的非营利组织，成立于2020年，现有志愿者1000余人。对，对吗？",
+    "status": "approved",
+    "logo": null,
+    "images": [],
+    "createdAt": "2025-12-20T07:05:26.000Z",
+    "updatedAt": "2025-12-22T12:37:06.000Z",
+    "created_at": "2025-12-20T07:05:26.000Z",
+    "updated_at": "2025-12-22T12:37:06.000Z"
+  },
+  {
+    "id": 2,
+    "name": "爱心志愿者团队",
+    "department": "社区服务中心",
+    "contact": "0754-88888889",
+    "address": "社区服务中心",
+    "description": "爱心志愿者团队",
+    "status": "approved",
+    "logo": null,
+    "images": [],
+    "createdAt": "2025-12-21T09:04:56.000Z",
+    "updatedAt": "2025-12-21T09:27:24.000Z",
+    "created_at": "2025-12-21T09:04:56.000Z",
+    "updated_at": "2025-12-21T09:27:24.000Z"
+  }
+]

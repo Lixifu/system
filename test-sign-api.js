@@ -4,9 +4,9 @@ const http = require('http');
 // 使用测试令牌
 const testToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mywicm9sZSI6InZvbHVudGVlciIsImlhdCI6MTc2NjIyMDQ3NSwiZXhwIjoxNzY2MzA2ODc1fQ.FJB8SYOkBmtc9RedB2_qxwO8zppPzPqlFXfktFPsOwI';
 
-// 测试数据
+// 测试数据，使用不存在的活动ID 999
 const testData = JSON.stringify({
-    qrCode: 'activity-1,signIn'
+    qrCode: `activity-999,signIn-${Date.now()}`
 });
 
 // 请求选项

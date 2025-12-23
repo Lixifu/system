@@ -38,6 +38,28 @@ const ActivityParticipant = sequelize.define('ActivityParticipant', {
         defaultValue: 'pending',
         comment: '报名状态'
     },
+    approvedBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'approved_by',
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: '审核人ID'
+    },
+    approvedAt: {
+        type: DataTypes.DATE,
+        field: 'approved_at',
+        comment: '审核时间'
+    },
+    approvalComment: {
+        type: DataTypes.TEXT,
+        field: 'approval_comment',
+        comment: '审核备注'
+    },
     signInTime: {
         type: DataTypes.DATE,
         field: 'sign_in_time',

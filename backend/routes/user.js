@@ -427,9 +427,9 @@ router.post('/sign', authMiddleware, async (req, res) => {
         const { qrCode } = req.body;
         
         // 解析二维码内容
-        const [activityIdStr, action] = qrCode.split(',');
+        const [activityIdStr, actionStr] = qrCode.split(',');
         
-        if (!activityIdStr || !action) {
+        if (!activityIdStr || !actionStr) {
             return res.status(400).json({ message: '二维码格式错误' });
         }
         
@@ -437,6 +437,16 @@ router.post('/sign', authMiddleware, async (req, res) => {
         const activityId = parseInt(activityIdStr.replace('activity-', ''));
         if (isNaN(activityId)) {
             return res.status(400).json({ message: '二维码格式错误，活动ID无效' });
+        }
+        
+        // 提取操作类型，处理带有时间戳的情况（如signIn-1234567890）
+        let action;
+        if (actionStr.startsWith('signIn')) {
+            action = 'signIn';
+        } else if (actionStr.startsWith('signOut')) {
+            action = 'signOut';
+        } else {
+            return res.status(400).json({ message: '二维码格式错误，操作类型无效' });
         }
         
         // 检查活动是否存在

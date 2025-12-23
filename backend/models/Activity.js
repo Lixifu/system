@@ -76,6 +76,11 @@ const Activity = sequelize.define('Activity', {
         field: 'qr_code',
         comment: '签到二维码'
     },
+    signOutQrCode: {
+        type: DataTypes.TEXT,
+        field: 'sign_out_qr_code',
+        comment: '签退二维码'
+    },
     requirements: {
         type: DataTypes.TEXT,
         comment: '报名要求'
@@ -134,16 +139,12 @@ const Activity = sequelize.define('Activity', {
         // 用于快速查询特定组织的活动
         { fields: ['organization_id'] },
         // 用于快速查询特定状态的活动
-        { fields: ['status'] },
-        // 用于快速查询特定类型的活动
-        { fields: ['type'] },
-        // 用于快速查询特定开始时间范围的活动
-        { fields: ['start_time'] }
+        { fields: ['status'] }
     ]
 });
 
 // 添加countParticipants方法，用于动态计算已报名人数
-Activity.prototype.countParticipants = async function(status = ['approved', 'pending']) {
+Activity.prototype.countParticipants = async function(status = ['approved']) {
     try {
         // 数据验证：确保活动ID有效
         if (!this.id) {
@@ -176,7 +177,7 @@ Activity.prototype.countParticipants = async function(status = ['approved', 'pen
 };
 
 // 添加静态方法，用于批量计算多个活动的已报名人数
-Activity.calculateRegisteredCounts = async function(activities, status = ['approved', 'pending']) {
+Activity.calculateRegisteredCounts = async function(activities, status = ['approved']) {
     try {
         // 数据验证：确保activities是有效的数组
         if (!activities || (Array.isArray(activities) && activities.length === 0)) {

@@ -5,6 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>志愿者管理系统</title>
     <link rel="stylesheet" href="src/css/style.css">
+    <!-- 引入jsQR二维码识别库 - 实现多CDN源和本地备份 -->
+    <script>
+        // 动态加载jsQR库，支持多CDN源和本地备份
+        (function() {
+            // 定义jsQR库的多个加载源，按优先级排序
+            const sources = [
+                'https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js',
+                'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
+                'https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js',
+                'src/js/jsQR.min.js' // 本地备份
+            ];
+            
+            let currentSourceIndex = 0;
+            let loadAttempts = 0;
+            const maxAttempts = 5;
+            
+            // 加载jsQR库的函数
+            function loadJSQR() {
+                if (currentSourceIndex >= sources.length || loadAttempts >= maxAttempts) {
+                    // 所有源都加载失败
+                    console.error('所有jsQR库源都加载失败');
+                    window.jsQRLoaded = false;
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                const source = sources[currentSourceIndex];
+                
+                script.src = source;
+                script.async = true;
+                
+                // 加载成功回调
+                script.onload = function() {
+                    console.log('jsQR库加载成功，来源:', source);
+                    window.jsQRLoaded = typeof jsQR !== 'undefined';
+                };
+                
+                // 加载失败回调
+                script.onerror = function() {
+                    console.error('jsQR库加载失败，来源:', source);
+                    currentSourceIndex++;
+                    loadAttempts++;
+                    loadJSQR(); // 尝试下一个源
+                };
+                
+                // 添加到文档中
+                document.head.appendChild(script);
+            }
+            
+            // 开始加载
+            loadJSQR();
+        })();
+        
+        // 全局变量跟踪jsQR加载状态
+        window.jsQRLoaded = false;
+    </script>
 </head>
 <body>
     <!-- 登录界面 -->
@@ -22,14 +78,7 @@
                         <label for="login-password">密码</label>
                         <input type="password" id="login-password" name="password" required>
                     </div>
-                    <div class="form-group">
-                        <label for="login-role">选择角色</label>
-                        <select id="login-role" name="role">
-                            <option value="volunteer">志愿者</option>
-                            <option value="organizer">组织方</option>
-                            <option value="admin">管理方</option>
-                        </select>
-                    </div>
+
                     <button type="submit" class="btn btn-primary btn-block">登录</button>
                 </form>
                 <div class="login-footer">
@@ -62,14 +111,7 @@
                         <label for="register-password">密码</label>
                         <input type="password" id="register-password" name="password" required>
                     </div>
-                    <div class="form-group">
-                        <label for="register-role">选择角色</label>
-                        <select id="register-role" name="role">
-                            <option value="volunteer">志愿者</option>
-                            <option value="organizer">组织方</option>
-                            <option value="admin">管理方</option>
-                        </select>
-                    </div>
+
                     <button type="submit" class="btn btn-primary btn-block">注册</button>
                 </form>
                 <div class="login-footer">
@@ -260,13 +302,7 @@
                     <label for="registerPassword">密码</label>
                     <input type="password" id="registerPassword" name="password" required>
                 </div>
-                <div class="form-group">
-                    <label for="registerRole">角色</label>
-                    <select id="registerRole" name="role">
-                        <option value="volunteer">志愿者</option>
-                        <option value="organizer">组织方</option>
-                    </select>
-                </div>
+
                 <div class="form-group">
                     <button type="submit" class="btn btn-primary">注册</button>
                     <p class="switch-form">已有账号？<a href="#" id="showLogin">立即登录</a></p>

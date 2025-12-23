@@ -4,6 +4,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initPage();
 });
 
+// 页面完全加载后（包括外部资源），检查jsQR库是否可用
+window.addEventListener('load', function() {
+    // 延迟检查，确保库有足够时间加载
+    setTimeout(() => {
+        if (typeof jsQR === 'undefined') {
+            console.error('jsQR库加载失败，扫码功能可能无法正常工作');
+            window.jsQRLoaded = false;
+        } else {
+            console.log('jsQR库加载成功，扫码功能可以正常使用');
+            window.jsQRLoaded = true;
+        }
+    }, 2000); // 延迟2秒检查
+});
+
 // 生成JWT令牌的函数
 function generateJWTToken(payload, secret, expiresIn) {
     // 简单的JWT生成实现，用于前端测试
@@ -3284,7 +3298,6 @@ async function handleLogin(e) {
     const formData = new FormData(e.target);
     const emailPhone = formData.get('emailPhone');
     const password = formData.get('password');
-    const role = formData.get('role') || 'volunteer';
     
     // 模拟登录功能 - 允许使用测试账号登录
     const testCredentials = [
@@ -3342,7 +3355,7 @@ async function handleLogin(e) {
             
             localStorage.setItem('token', data.data.token);
             // 提取用户数据，注意API返回格式是data.data.user
-            const userData = { ...data.data.user, role: data.data.user?.role || role };
+            const userData = { ...data.data.user };
             localStorage.setItem('user', JSON.stringify(userData));
             
             // 登录成功后直接刷新页面，确保所有初始化逻辑正确执行
@@ -3524,7 +3537,7 @@ async function handleRegister(e) {
     const phone = formData.get('phone');
     const email = formData.get('email');
     const password = formData.get('password');
-    const role = formData.get('role') || 'volunteer';
+    const role = 'volunteer';
     
     try {
         // 调用注册API（使用正确的端口3001）
@@ -4152,7 +4165,7 @@ async function registerActivity(activityId) {
     const token = localStorage.getItem('token');
     if (!token) {
         console.error('报名失败: 用户未登录');
-        alert('请先登录');
+        showToast('请先登录', 'warning');
         return;
     }
     
@@ -4199,7 +4212,7 @@ async function registerActivity(activityId) {
         
         if (response.ok) {
             // 报名成功
-            alert(data.message || '报名成功');
+            showToast(data.message || '报名成功', 'success');
             
             // 更新已报名活动ID列表
             const registeredActivityIds = JSON.parse(localStorage.getItem('registeredActivityIds') || '[]');
@@ -4228,12 +4241,12 @@ async function registerActivity(activityId) {
         } else {
             // 报名失败
             console.error('报名失败，错误信息:', data.message || '未知错误');
-            alert(data.message || '报名失败');
+            showToast(data.message || '报名失败', 'error');
         }
     } catch (error) {
         console.error('报名请求失败:', error);
         console.error('错误堆栈:', error.stack);
-        alert('报名请求失败，请稍后重试');
+        showToast('报名请求失败，请稍后重试', 'error');
     }
 }
 
@@ -4906,6 +4919,9 @@ let video = null;
 let canvasElement = null;
 let canvasContext = null;
 let scanning = false;
+let lastScanTime = 0;
+let lastQRContent = '';
+const SCAN_INTERVAL = 500; // 识别频率，每500ms识别一次
 
 // 打开扫码模态框
 function openScanModal() {
@@ -4948,23 +4964,131 @@ function initializeScanArea() {
     video.setAttribute('playsinline', '');
     video.style.width = '100%';
     video.style.height = '100%';
+    video.style.objectFit = 'contain';
     
     // 创建画布元素用于二维码检测
     canvasElement = document.createElement('canvas');
+    // 设置画布样式，使其与视频叠加
+    canvasElement.style.position = 'absolute';
+    canvasElement.style.top = '0';
+    canvasElement.style.left = '0';
+    canvasElement.style.width = '100%';
+    canvasElement.style.height = '100%';
+    canvasElement.style.pointerEvents = 'none'; // 允许点击穿透
+    canvasElement.style.zIndex = '10'; // 确保画布在视频上方
+    
     canvasContext = canvasElement.getContext('2d', { willReadFrequently: true });
     
+    // 添加视频和画布到扫描区域
     scanPreview.appendChild(video);
+    scanPreview.appendChild(canvasElement);
+    
+    // 重置状态变量
+    scanning = false;
+    lastScanTime = 0;
+    lastQRContent = '';
 }
 
 // 开始扫描
 async function startScan() {
     try {
-        // 获取摄像头权限
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        // 重置UI状态
+        scanStatus.textContent = '正在准备扫码...';
+        startScanBtn.style.display = 'none';
+        stopScanBtn.style.display = 'inline-block';
+        
+        // 检查jsQR库是否加载完成
+        if (typeof jsQR === 'undefined') {
+            // 显示加载状态，提供重试选项
+            scanStatus.innerHTML = '二维码识别库正在加载... <button id="retryLoadBtn" class="btn btn-sm">重试</button>';
+            
+            // 添加重试按钮事件
+            const retryBtn = document.getElementById('retryLoadBtn');
+            if (retryBtn) {
+                retryBtn.onclick = function() {
+                    // 重新加载jsQR库
+                    location.reload();
+                };
+            }
+            
+            // 设置5秒后自动重试
+            setTimeout(() => {
+                if (typeof jsQR === 'undefined') {
+                    scanStatus.innerHTML = '二维码识别库加载失败，<br>请检查网络连接或 <button id="retryBtn" class="btn btn-sm">刷新页面</button> <br>或 <button id="manualInputBtn" class="btn btn-sm">手动输入</button>';
+                    
+                    // 添加刷新按钮事件
+                    const refreshBtn = document.getElementById('retryBtn');
+                    if (refreshBtn) {
+                        refreshBtn.onclick = function() {
+                            location.reload();
+                        };
+                    }
+                    
+                    // 添加手动输入按钮事件
+                    const manualBtn = document.getElementById('manualInputBtn');
+                    if (manualBtn) {
+                        manualBtn.onclick = function() {
+                            showManualQRInput();
+                        };
+                    }
+                    
+                    // 恢复UI状态
+                    startScanBtn.style.display = 'inline-block';
+                    stopScanBtn.style.display = 'none';
+                }
+            }, 5000);
+            
+            return;
+        }
+        
+        // 重置状态变量
+        lastScanTime = 0;
+        lastQRContent = '';
+        
+        // 获取摄像头权限，添加更多的视频约束
+        const constraints = {
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }
+            }
+        };
+        
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log('摄像头权限获取成功，视频流创建成功');
         
         // 设置视频流
         video.srcObject = stream;
+        
+        // 监听视频加载元数据事件
+        video.onloadedmetadata = () => {
+            console.log('视频元数据加载完成，视频尺寸:', video.videoWidth, 'x', video.videoHeight);
+        };
+        
+        // 监听视频可播放事件
+        video.oncanplay = () => {
+            console.log('视频可播放，开始播放视频');
+        };
+        
+        // 监听视频播放事件
+        video.onplay = () => {
+            console.log('视频播放开始');
+        };
+        
+        // 监听视频暂停事件
+        video.onpause = () => {
+            console.log('视频播放暂停');
+        };
+        
+        // 监听视频错误事件
+        video.onerror = (e) => {
+            console.error('视频播放错误:', e);
+            scanStatus.textContent = '视频播放出错，请重试';
+        };
+        
         await video.play();
+        console.log('视频播放成功');
         
         // 更新UI
         scanStatus.textContent = '正在扫描...';
@@ -4973,10 +5097,68 @@ async function startScan() {
         
         // 开始检测二维码
         scanning = true;
+        // 立即启动tick函数，确保扫描开始
         requestAnimationFrame(tick);
+        console.log('二维码扫描已启动');
     } catch (error) {
         console.error('获取摄像头权限失败:', error);
-        scanStatus.textContent = '获取摄像头权限失败，请检查设备设置';
+        let errorMessage = '获取摄像头权限失败';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMessage = '请允许摄像头权限，然后重试';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage = '未找到可用摄像头';
+        } else if (error.name === 'NotReadableError') {
+            errorMessage = '摄像头被其他应用占用';
+        } else if (error.name === 'OverconstrainedError') {
+            errorMessage = '摄像头不支持所需的分辨率';
+        } else if (error.name === 'AbortError') {
+            errorMessage = '摄像头请求被中止';
+        } else if (error.name === 'NotSupportedError') {
+            errorMessage = '浏览器不支持摄像头功能';
+        }
+        
+        scanStatus.textContent = errorMessage;
+        scanning = false;
+        startScanBtn.style.display = 'inline-block';
+        stopScanBtn.style.display = 'none';
+    }
+}
+
+// 显示手动输入二维码界面
+function showManualQRInput() {
+    scanStatus.innerHTML = `
+        <div class="manual-input-container">
+            <h4>手动输入二维码内容</h4>
+            <input type="text" id="manualQRInput" placeholder="请输入二维码内容" style="width: 100%; padding: 8px; margin: 10px 0;">
+            <div style="display: flex; gap: 10px;">
+                <button id="submitManualQR" class="btn btn-primary">提交</button>
+                <button id="cancelManualQR" class="btn btn-secondary">取消</button>
+            </div>
+        </div>
+    `;
+    
+    // 添加提交按钮事件
+    const submitBtn = document.getElementById('submitManualQR');
+    if (submitBtn) {
+        submitBtn.onclick = function() {
+            const qrContent = document.getElementById('manualQRInput').value.trim();
+            if (qrContent) {
+                handleScanResult(qrContent);
+            } else {
+                alert('请输入二维码内容');
+            }
+        };
+    }
+    
+    // 添加取消按钮事件
+    const cancelBtn = document.getElementById('cancelManualQR');
+    if (cancelBtn) {
+        cancelBtn.onclick = function() {
+            scanStatus.textContent = '请将二维码对准扫描框';
+            startScanBtn.style.display = 'inline-block';
+            stopScanBtn.style.display = 'none';
+        };
     }
 }
 
@@ -5145,17 +5327,12 @@ async function handleEditOrganization(form, modal, originalOrg) {
         // 调用API更新组织信息
         const result = await api.organizer.updateOrganization(organizationData);
         
-        if (result && (result.status === 'success' || result.id)) {
-            // 更新成功
-            alert('组织信息更新成功');
-            modal.remove();
-            
-            // 重新加载组织设置信息
-            await loadOrganizerSettings();
-        } else {
-            // 更新失败
-            alert(`组织信息更新失败: ${result.message || '未知错误'}`);
-        }
+        // API请求成功（request函数已经处理了非200状态码的情况）
+        alert('组织信息更新成功');
+        modal.remove();
+        
+        // 重新加载组织设置信息
+        await loadOrganizerSettings();
     } catch (error) {
         console.error('更新组织信息失败:', error);
         alert(`更新组织信息失败: ${error.message}`);
@@ -5185,9 +5362,9 @@ async function viewActivityApplications(activityId, activityTitle) {
         const closeBtn = modal.querySelector('.close');
         closeBtn.addEventListener('click', () => modal.remove());
         
-        // 获取报名申请数据
+        // 获取报名申请数据（使用正确的participants端点）
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications`, {
+        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/participants`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -5245,23 +5422,26 @@ function renderApplicationList(modal, applications, activityId) {
             
             <div class="applications-list">
                 ${applications.map(app => `
-                    <div class="application-item" data-application-id="${app.id}" data-gender="${app.user?.gender || ''}" data-age="${app.user?.age || ''}">
+                    <div class="application-item" data-application-id="${app.volunteerId}" data-gender="${app.gender || ''}" data-age="${app.age || ''}">
                         <div class="application-header">
-                            <h4>${app.user?.name || '未知用户'}</h4>
+                            <h4>${app.volunteerName || '未知用户'}</h4>
                             <span class="application-status ${app.status}">${getStatusText(app.status)}</span>
                         </div>
                         <div class="application-info">
-                            <p><strong>手机号:</strong> ${app.user?.phone || '未知'}</p>
-                            <p><strong>邮箱:</strong> ${app.user?.email || '未知'}</p>
-                            <p><strong>性别:</strong> ${app.user?.gender === 'male' ? '男' : app.user?.gender === 'female' ? '女' : app.user?.gender || '未知'}</p>
-                            <p><strong>年龄:</strong> ${app.user?.age || '未知'}</p>
-                            <p><strong>报名时间:</strong> ${new Date(app.createdAt).toLocaleString()}</p>
+                            <p><strong>手机号:</strong> ${app.contactInfo?.phone || '未知'}</p>
+                            <p><strong>邮箱:</strong> ${app.contactInfo?.email || '未知'}</p>
+                            <p><strong>性别:</strong> ${app.gender === 'male' ? '男' : app.gender === 'female' ? '女' : app.gender || '未知'}</p>
+                            <p><strong>年龄:</strong> ${app.age || '未知'}</p>
+                            <p><strong>报名时间:</strong> ${new Date(app.registrationTime).toLocaleString()}</p>
                             ${app.note ? `<p><strong>备注:</strong> ${app.note}</p>` : ''}
+                            ${app.approvalComment ? `<p><strong>审核备注:</strong> ${app.approvalComment}</p>` : ''}
+                            ${app.approvedAt ? `<p><strong>审核时间:</strong> ${new Date(app.approvedAt).toLocaleString()}</p>` : ''}
+                            ${app.approvedBy ? `<p><strong>审核人:</strong> ${app.approvedBy.name || '未知'}</p>` : ''}
                         </div>
                         <div class="application-actions">
                             ${app.status === 'pending' ? `
-                                <button class="btn btn-primary approve-btn" onclick="approveApplication(${activityId}, ${app.id})">通过</button>
-                                <button class="btn btn-danger reject-btn" onclick="rejectApplication(${activityId}, ${app.id})">拒绝</button>
+                                <button class="btn btn-primary approve-btn" onclick="approveApplication(${activityId}, ${app.volunteerId})">通过</button>
+                                <button class="btn btn-danger reject-btn" onclick="rejectApplication(${activityId}, ${app.volunteerId})">拒绝</button>
                             ` : ''}
                         </div>
                     </div>
@@ -5326,7 +5506,7 @@ function renderApplicationList(modal, applications, activityId) {
                 
                 // 重新加载报名申请列表
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications`, {
+                const response = await fetch(`http://localhost:3001/api/activities/${activityId}/participants`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -5366,7 +5546,7 @@ function renderApplicationList(modal, applications, activityId) {
                 
                 // 重新加载报名申请列表
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications`, {
+                const response = await fetch(`http://localhost:3001/api/activities/${activityId}/participants`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -5444,22 +5624,80 @@ function getStatusValue(statusText) {
     return statusMap[statusText] || statusText;
 }
 
+// 显示toast提示
+function showToast(message, type = 'success') {
+    // 创建toast元素
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    
+    // 添加样式
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+        opacity: 0;
+    `;
+    
+    // 根据类型设置背景色
+    if (type === 'success') {
+        toast.style.backgroundColor = '#52c41a';
+    } else if (type === 'error') {
+        toast.style.backgroundColor = '#ff4d4f';
+    } else if (type === 'warning') {
+        toast.style.backgroundColor = '#faad14';
+    } else if (type === 'info') {
+        toast.style.backgroundColor = '#1890ff';
+    }
+    
+    // 添加到页面
+    document.body.appendChild(toast);
+    
+    // 显示toast
+    setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+    }, 100);
+    
+    // 3秒后隐藏并移除
+    setTimeout(() => {
+        toast.style.transform = 'translateX(400px)';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
 // 批准报名申请
 async function approveApplication(activityId, applicationId) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications/${applicationId}/approve`, {
-            method: 'POST',
+        // 添加审核备注输入
+        const comment = prompt('请输入审核备注（可选）:');
+        // 使用正确的API端点格式: PUT /:id/approve/:userId
+        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/approve/${applicationId}`, {
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ comment }) // 传递审核备注
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            alert('报名申请已通过');
+            showToast('报名申请已通过', 'success');
             // 重新加载活动列表，更新报名人数
             loadOrganizerActivities();
             
@@ -5472,11 +5710,11 @@ async function approveApplication(activityId, applicationId) {
                 modal.remove();
             }
         } else {
-            alert(`操作失败: ${data.message || '未知错误'}`);
+            showToast(`操作失败: ${data.message || '未知错误'}`, 'error');
         }
     } catch (error) {
         console.error('批准报名申请失败:', error);
-        alert(`操作失败: ${error.message}`);
+        showToast(`操作失败: ${error.message}`, 'error');
     }
 }
 
@@ -5484,22 +5722,22 @@ async function approveApplication(activityId, applicationId) {
 async function rejectApplication(activityId, applicationId) {
     try {
         const token = localStorage.getItem('token');
-        const reason = prompt('请输入拒绝原因:');
-        if (reason === null) return; // 用户取消操作
-        
-        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications/${applicationId}/reject`, {
-            method: 'POST',
+        const comment = prompt('请输入拒绝原因:');
+        if (comment === null) return; // 用户取消操作
+        // 使用正确的API端点格式: PUT /:id/participants/:userId/reject
+        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/participants/${applicationId}/reject`, {
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ reason })
+            body: JSON.stringify({ comment }) // 使用comment字段统一处理审核备注
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            alert('报名申请已拒绝');
+            showToast('报名申请已拒绝', 'success');
             // 重新加载活动列表
             loadOrganizerActivities();
             
@@ -5512,11 +5750,11 @@ async function rejectApplication(activityId, applicationId) {
                 modal.remove();
             }
         } else {
-            alert(`操作失败: ${data.message || '未知错误'}`);
+            showToast(`操作失败: ${data.message || '未知错误'}`, 'error');
         }
     } catch (error) {
         console.error('拒绝报名申请失败:', error);
-        alert(`操作失败: ${error.message}`);
+        showToast(`操作失败: ${error.message}`, 'error');
     }
 }
 
@@ -5526,27 +5764,31 @@ async function batchProcessApplications(activityId, applicationIds, action) {
         const token = localStorage.getItem('token');
         const endpoint = action === 'approve' ? 'approve' : 'reject';
         
-        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/applications/batch-${endpoint}`, {
-            method: 'POST',
+        // 添加批量审核备注输入
+        const comment = prompt(`请输入${action === 'approve' ? '批量通过' : '批量拒绝'}的审核备注（可选）:`);
+        if (comment === null) return; // 用户取消操作
+        
+        const response = await fetch(`http://localhost:3001/api/activities/${activityId}/participants/batch-${endpoint}`, {
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ applicationIds })
+            body: JSON.stringify({ userIds: applicationIds, comment }) // 传递用户ID列表和审核备注
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            alert(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作成功`);
+            showToast(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作成功`, 'success');
             // 重新加载活动列表
             loadOrganizerActivities();
         } else {
-            alert(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作失败: ${data.message || '未知错误'}`);
+            showToast(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作失败: ${data.message || '未知错误'}`, 'error');
         }
     } catch (error) {
         console.error(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作失败:`, error);
-        alert(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作失败: ${error.message}`);
+        showToast(`${action === 'approve' ? '批量通过' : '批量拒绝'}操作失败: ${error.message}`, 'error');
     }
 }
 
@@ -5582,14 +5824,16 @@ async function viewQRCodeManagement(activityId, activityTitle) {
         });
         
         const data = await response.json();
-        let qrCode = null;
+        let signInQrCode = null;
+        let signOutQrCode = null;
         
         if (response.ok) {
-            qrCode = data.qrCode || null;
+            signInQrCode = data.signInQrCode || null;
+            signOutQrCode = data.signOutQrCode || null;
         }
         
         // 渲染二维码管理页面
-        renderQRCodeManagement(modal, activityId, qrCode);
+        renderQRCodeManagement(modal, activityId, signInQrCode, signOutQrCode);
     } catch (error) {
         console.error('加载二维码信息失败:', error);
         alert(`加载二维码信息失败: ${error.message}`);
@@ -5597,22 +5841,54 @@ async function viewQRCodeManagement(activityId, activityTitle) {
 }
 
 // 渲染二维码管理页面
-function renderQRCodeManagement(modal, activityId, qrCode) {
+function renderQRCodeManagement(modal, activityId, signInQrCode, signOutQrCode) {
     const content = modal.querySelector('#qrcodeManagementContent');
     
     content.innerHTML = `
         <div class="qrcode-management-container">
-            <div class="qrcode-display">
+            <!-- 签到二维码 -->
+            <div class="qrcode-section">
                 <h3>当前签到二维码</h3>
-                <div class="qrcode-preview">
-                    ${qrCode ? `
-                        <img src="${qrCode}" alt="签到二维码" style="max-width: 300px; max-height: 300px;">
-                    ` : '<p>暂无二维码</p>'}
+                <div class="qrcode-display">
+                    <div class="qrcode-preview" id="signInQrCodePreview">
+                        ${signInQrCode ? `
+                            <img src="${signInQrCode}" alt="签到二维码" style="max-width: 300px; max-height: 300px;">
+                        ` : '<p>暂无二维码</p>'}
+                        <div id="signInQrCodeLoading" style="display: none; text-align: center; padding: 20px; font-style: italic;">生成中...</div>
+                    </div>
+                    
+                    <div class="qrcode-actions">
+                        <button id="generateSignInQRCodeBtn" class="btn btn-primary">生成新签到二维码</button>
+                        ${signInQrCode ? `<button id="updateSignInQRCodeBtn" class="btn btn-secondary">更新签到二维码</button>` : ''}
+                        ${signInQrCode ? `<button id="downloadSignInQRCodeBtn" class="btn btn-success">下载签到二维码</button>` : ''}
+                        ${signInQrCode ? `<button id="disableSignInQRCodeBtn" class="btn btn-danger">禁用签到二维码</button>` : ''}
+                    </div>
                 </div>
             </div>
             
-            <div class="qrcode-actions">
-                <h3>二维码管理</h3>
+            <!-- 签退二维码 -->
+            <div class="qrcode-section">
+                <h3>当前签退二维码</h3>
+                <div class="qrcode-display">
+                    <div class="qrcode-preview" id="signOutQrCodePreview">
+                        ${signOutQrCode ? `
+                            <img src="${signOutQrCode}" alt="签退二维码" style="max-width: 300px; max-height: 300px;">
+                        ` : '<p>暂无二维码</p>'}
+                        <div id="signOutQrCodeLoading" style="display: none; text-align: center; padding: 20px; font-style: italic;">生成中...</div>
+                    </div>
+                    
+                    <div class="qrcode-actions">
+                        <button id="generateSignOutQRCodeBtn" class="btn btn-primary">生成新签退二维码</button>
+                        ${signOutQrCode ? `<button id="updateSignOutQRCodeBtn" class="btn btn-secondary">更新签退二维码</button>` : ''}
+                        ${signOutQrCode ? `<button id="downloadSignOutQRCodeBtn" class="btn btn-success">下载签退二维码</button>` : ''}
+                        ${signOutQrCode ? `<button id="disableSignOutQRCodeBtn" class="btn btn-danger">禁用签退二维码</button>` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 通用设置 -->
+            <div class="qrcode-settings">
+                <h3>二维码设置</h3>
                 <div class="form-group">
                     <label for="qrcodeExpiry">有效期（分钟）</label>
                     <input type="number" id="qrcodeExpiry" min="1" max="1440" value="60" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
@@ -5624,55 +5900,88 @@ function renderQRCodeManagement(modal, activityId, qrCode) {
                     <input type="number" id="qrcodeUsageLimit" min="1" value="100" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                     <p class="help-text">设置二维码的最大使用次数，达到限制后需要重新生成</p>
                 </div>
-                
-                <div class="action-buttons">
-                    <button id="generateQRCodeBtn" class="btn btn-primary">生成新二维码</button>
-                    ${qrCode ? `<button id="updateQRCodeBtn" class="btn btn-secondary">更新二维码</button>` : ''}
-                    ${qrCode ? `<button id="downloadQRCodeBtn" class="btn btn-success">下载二维码</button>` : ''}
-                    ${qrCode ? `<button id="disableQRCodeBtn" class="btn btn-danger">禁用当前二维码</button>` : ''}
-                </div>
             </div>
         </div>
     `;
     
-    // 绑定事件
-    const generateBtn = content.querySelector('#generateQRCodeBtn');
-    const updateBtn = content.querySelector('#updateQRCodeBtn');
-    const downloadBtn = content.querySelector('#downloadQRCodeBtn');
-    const disableBtn = content.querySelector('#disableQRCodeBtn');
+    // 绑定签到二维码事件
+    const generateSignInBtn = content.querySelector('#generateSignInQRCodeBtn');
+    const updateSignInBtn = content.querySelector('#updateSignInQRCodeBtn');
+    const downloadSignInBtn = content.querySelector('#downloadSignInQRCodeBtn');
+    const disableSignInBtn = content.querySelector('#disableSignInQRCodeBtn');
     
-    // 生成新二维码
-    if (generateBtn) {
-        generateBtn.addEventListener('click', async () => {
-            await generateQRCode(modal, activityId);
+    // 生成新签到二维码
+    if (generateSignInBtn) {
+        generateSignInBtn.addEventListener('click', async () => {
+            await generateQRCode(modal, activityId, 'signIn');
         });
     }
     
-    // 更新二维码
-    if (updateBtn) {
-        updateBtn.addEventListener('click', async () => {
-            await updateQRCode(modal, activityId);
+    // 更新签到二维码
+    if (updateSignInBtn) {
+        updateSignInBtn.addEventListener('click', async () => {
+            await updateQRCode(modal, activityId, 'signIn');
         });
     }
     
-    // 下载二维码
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', async () => {
-            await downloadQRCode(qrCode, activityId);
+    // 下载签到二维码
+    if (downloadSignInBtn) {
+        downloadSignInBtn.addEventListener('click', async () => {
+            await downloadQRCode(signInQrCode, activityId, 'signIn');
         });
     }
     
-    // 禁用二维码
-    if (disableBtn) {
-        disableBtn.addEventListener('click', async () => {
-            await disableQRCode(modal, activityId);
+    // 禁用签到二维码
+    if (disableSignInBtn) {
+        disableSignInBtn.addEventListener('click', async () => {
+            await disableQRCode(modal, activityId, 'signIn');
+        });
+    }
+    
+    // 绑定签退二维码事件
+    const generateSignOutBtn = content.querySelector('#generateSignOutQRCodeBtn');
+    const updateSignOutBtn = content.querySelector('#updateSignOutQRCodeBtn');
+    const downloadSignOutBtn = content.querySelector('#downloadSignOutQRCodeBtn');
+    const disableSignOutBtn = content.querySelector('#disableSignOutQRCodeBtn');
+    
+    // 生成新签退二维码
+    if (generateSignOutBtn) {
+        generateSignOutBtn.addEventListener('click', async () => {
+            await generateQRCode(modal, activityId, 'signOut');
+        });
+    }
+    
+    // 更新签退二维码
+    if (updateSignOutBtn) {
+        updateSignOutBtn.addEventListener('click', async () => {
+            await updateQRCode(modal, activityId, 'signOut');
+        });
+    }
+    
+    // 下载签退二维码
+    if (downloadSignOutBtn) {
+        downloadSignOutBtn.addEventListener('click', async () => {
+            await downloadQRCode(signOutQrCode, activityId, 'signOut');
+        });
+    }
+    
+    // 禁用签退二维码
+    if (disableSignOutBtn) {
+        disableSignOutBtn.addEventListener('click', async () => {
+            await disableQRCode(modal, activityId, 'signOut');
         });
     }
 }
 
 // 生成新二维码
-async function generateQRCode(modal, activityId) {
+async function generateQRCode(modal, activityId, type = 'signIn') {
     try {
+        // 显示加载状态
+        const loadingDiv = modal.querySelector(`#${type}QrCodeLoading`);
+        if (loadingDiv) {
+            loadingDiv.style.display = 'block';
+        }
+        
         const expiry = parseInt(modal.querySelector('#qrcodeExpiry').value) || 60;
         const usageLimit = parseInt(modal.querySelector('#qrcodeUsageLimit').value) || 100;
         
@@ -5683,26 +5992,55 @@ async function generateQRCode(modal, activityId) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ expiry, usageLimit })
+            body: JSON.stringify({ type, expiry, usageLimit })
         });
         
         const data = await response.json();
         
-        if (response.ok && data.qrCode) {
-            alert('新二维码已生成');
-            renderQRCodeManagement(modal, activityId, data.qrCode);
+        // 重新获取最新的二维码信息
+        const refreshResponse = await fetch(`http://localhost:3001/api/activities/${activityId}/qrcode`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const refreshData = await refreshResponse.json();
+        
+        if (response.ok && refreshResponse.ok) {
+            // 隐藏加载状态
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            alert(`${type === 'signIn' ? '签到' : '签退'}二维码已生成`);
+            renderQRCodeManagement(modal, activityId, refreshData.signInQrCode, refreshData.signOutQrCode);
         } else {
-            alert(`生成二维码失败: ${data.message || '未知错误'}`);
+            // 隐藏加载状态
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            alert(`生成${type === 'signIn' ? '签到' : '签退'}二维码失败: ${data.message || '未知错误'}`);
         }
     } catch (error) {
-        console.error('生成二维码失败:', error);
-        alert(`生成二维码失败: ${error.message}`);
+        // 隐藏加载状态
+        const loadingDiv = modal.querySelector(`#${type}QrCodeLoading`);
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        console.error(`生成${type === 'signIn' ? '签到' : '签退'}二维码失败:`, error);
+        alert(`生成${type === 'signIn' ? '签到' : '签退'}二维码失败: ${error.message}`);
     }
 }
 
 // 更新二维码
-async function updateQRCode(modal, activityId) {
+async function updateQRCode(modal, activityId, type = 'signIn') {
     try {
+        // 显示加载状态
+        const loadingDiv = modal.querySelector(`#${type}QrCodeLoading`);
+        if (loadingDiv) {
+            loadingDiv.style.display = 'block';
+        }
+        
         const expiry = parseInt(modal.querySelector('#qrcodeExpiry').value) || 60;
         const usageLimit = parseInt(modal.querySelector('#qrcodeUsageLimit').value) || 100;
         
@@ -5713,116 +6051,239 @@ async function updateQRCode(modal, activityId) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ expiry, usageLimit })
+            body: JSON.stringify({ type, expiry, usageLimit })
         });
         
         const data = await response.json();
         
-        if (response.ok && data.qrCode) {
-            alert('二维码已更新');
-            renderQRCodeManagement(modal, activityId, data.qrCode);
+        // 重新获取最新的二维码信息
+        const refreshResponse = await fetch(`http://localhost:3001/api/activities/${activityId}/qrcode`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const refreshData = await refreshResponse.json();
+        
+        if (response.ok && refreshResponse.ok) {
+            // 隐藏加载状态
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            alert(`${type === 'signIn' ? '签到' : '签退'}二维码已更新`);
+            renderQRCodeManagement(modal, activityId, refreshData.signInQrCode, refreshData.signOutQrCode);
         } else {
-            alert(`更新二维码失败: ${data.message || '未知错误'}`);
+            // 隐藏加载状态
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            alert(`更新${type === 'signIn' ? '签到' : '签退'}二维码失败: ${data.message || '未知错误'}`);
         }
     } catch (error) {
-        console.error('更新二维码失败:', error);
-        alert(`更新二维码失败: ${error.message}`);
+        // 隐藏加载状态
+        const loadingDiv = modal.querySelector(`#${type}QrCodeLoading`);
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        console.error(`更新${type === 'signIn' ? '签到' : '签退'}二维码失败:`, error);
+        alert(`更新${type === 'signIn' ? '签到' : '签退'}二维码失败: ${error.message}`);
     }
 }
 
 // 下载二维码
-async function downloadQRCode(qrCode, activityId) {
+async function downloadQRCode(qrCode, activityId, type = 'signIn') {
     try {
         const response = await fetch(qrCode);
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `activity-qrcode-${activityId}-${new Date().toISOString().slice(0, 10)}.png`;
+        a.download = `activity-${type}-qrcode-${activityId}-${new Date().toISOString().slice(0, 10)}.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        alert('二维码下载成功');
+        alert(`${type === 'signIn' ? '签到' : '签退'}二维码下载成功`);
     } catch (error) {
-        console.error('下载二维码失败:', error);
-        alert(`下载二维码失败: ${error.message}`);
+        console.error(`下载${type === 'signIn' ? '签到' : '签退'}二维码失败:`, error);
+        alert(`下载${type === 'signIn' ? '签到' : '签退'}二维码失败: ${error.message}`);
     }
 }
 
 // 禁用二维码
-async function disableQRCode(modal, activityId) {
+async function disableQRCode(modal, activityId, type = 'signIn') {
     try {
-        if (confirm('确定要禁用当前二维码吗？')) {
+        if (confirm(`确定要禁用当前${type === 'signIn' ? '签到' : '签退'}二维码吗？`)) {
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:3001/api/activities/${activityId}/qrcode/disable`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type })
+            });
+            
+            const data = await response.json();
+            
+            // 重新获取最新的二维码信息
+            const refreshResponse = await fetch(`http://localhost:3001/api/activities/${activityId}/qrcode`, {
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             
-            const data = await response.json();
+            const refreshData = await refreshResponse.json();
             
-            if (response.ok) {
-                alert('二维码已禁用');
-                renderQRCodeManagement(modal, activityId, null);
+            if (response.ok && refreshResponse.ok) {
+                alert(data.message);
+                renderQRCodeManagement(modal, activityId, refreshData.signInQrCode, refreshData.signOutQrCode);
             } else {
-                alert(`禁用二维码失败: ${data.message || '未知错误'}`);
+                alert(`禁用${type === 'signIn' ? '签到' : '签退'}二维码失败: ${data.message || '未知错误'}`);
             }
         }
     } catch (error) {
-        console.error('禁用二维码失败:', error);
-        alert(`禁用二维码失败: ${error.message}`);
+        console.error(`禁用${type === 'signIn' ? '签到' : '签退'}二维码失败:`, error);
+        alert(`禁用${type === 'signIn' ? '签到' : '签退'}二维码失败: ${error.message}`);
     }
 }
 
 // 帧检测函数
 function tick() {
-    if (!scanning || !video || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        return;
-    }
-    
-    // 设置画布大小
-    canvasElement.width = video.videoWidth;
-    canvasElement.height = video.videoHeight;
-    
-    // 绘制视频帧到画布
-    canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-    
-    // 获取图像数据
-    const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
-    
-    // 这里应该使用二维码识别库，如jsQR或zxing-js
-    // 由于没有引入这些库，我们模拟一个扫码结果
-    // 实际项目中应该替换为真实的二维码识别逻辑
-    simulateQRCodeScan();
-    
-    if (scanning) {
+    try {
+        if (!scanning || !video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+            // 即使未处于扫描状态，也继续请求下一帧，确保视频流持续更新
+            requestAnimationFrame(tick);
+            return;
+        }
+        
+        // 设置画布大小
+        canvasElement.width = video.videoWidth;
+        canvasElement.height = video.videoHeight;
+        
+        // 绘制视频帧到画布
+        canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        
+        // 获取当前时间，用于控制识别频率
+        const currentTime = Date.now();
+        
+        // 控制识别频率，避免每帧都进行识别
+        if (currentTime - lastScanTime > SCAN_INTERVAL) {
+            // 检查jsQR库是否可用
+            if (typeof jsQR === 'undefined') {
+                console.error('jsQR库未加载，无法进行二维码识别');
+                scanStatus.textContent = '二维码识别库加载失败，请刷新页面重试';
+                lastScanTime = currentTime; // 更新扫描时间，避免频繁报错
+                requestAnimationFrame(tick);
+                return;
+            }
+            
+            // 尝试获取图像数据，添加错误捕获
+            let imageData;
+            try {
+                imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+            } catch (e) {
+                console.error('获取图像数据失败:', e);
+                lastScanTime = currentTime;
+                requestAnimationFrame(tick);
+                return;
+            }
+            
+            // 使用jsQR库识别二维码
+            let code;
+            try {
+                // 优化：尝试识别正常和反转颜色的二维码，提高识别率
+                code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth",
+                });
+            } catch (e) {
+                console.error('二维码识别失败:', e);
+                lastScanTime = currentTime;
+                requestAnimationFrame(tick);
+                return;
+            }
+            
+            // 添加调试日志
+            console.log('二维码识别结果:', code ? code.data : '未识别到二维码');
+            
+            // 识别成功且二维码内容有效
+            if (code && code.data) {
+                // 结果去重，避免重复处理同一二维码
+                if (code.data !== lastQRContent) {
+                    lastQRContent = code.data;
+                    console.log('识别到新的二维码:', code.data);
+                    // 处理扫码结果
+                    handleScanResult(code.data);
+                }
+            } else {
+                // 未识别到二维码，更新状态显示
+                if (scanStatus && scanStatus.textContent !== '正在扫描...') {
+                    scanStatus.textContent = '正在扫描...';
+                }
+            }
+            
+            // 更新最后扫描时间
+            lastScanTime = currentTime;
+        }
+        
+        // 持续请求下一帧，确保视频流持续更新
+        requestAnimationFrame(tick);
+    } catch (error) {
+        console.error('tick函数执行错误:', error);
+        // 即使发生错误，也要继续请求下一帧，避免摄像头画面卡死
         requestAnimationFrame(tick);
     }
 }
 
 // 模拟二维码扫描（实际项目中应替换为真实的二维码识别）
 async function simulateQRCodeScan() {
-    // 模拟每100帧扫描一次
-    if (Math.random() > 0.99) {
-        // 模拟一个二维码内容，格式：activityId,action (action: signIn/signOut)
-        const qrContent = `activity-${Math.floor(Math.random() * 100) + 1},${Math.random() > 0.5 ? 'signIn' : 'signOut'}`;
-        
-        // 处理扫码结果
-        await handleScanResult(qrContent);
-    }
+    // 注释掉自动生成二维码的逻辑，避免过早触发API请求
+    // 在真实项目中，这里应该是二维码识别库的调用
+    console.log('模拟二维码扫描 - 实际项目中应替换为真实的二维码识别逻辑');
+    // 仅在测试时手动调用，不再自动触发
 }
 
 // 处理扫码结果
 async function handleScanResult(qrContent) {
+    // 检查扫描状态，确保只有在扫描中才处理结果
+    if (!scanning) {
+        console.warn('未处于扫描状态，忽略扫码结果');
+        return;
+    }
+    
     try {
-        // 解析二维码内容
-        const [activityId, action] = qrContent.split(',');
+        // 验证二维码内容不能为空
+        if (!qrContent || typeof qrContent !== 'string') {
+            scanStatus.textContent = '二维码内容无效';
+            return;
+        }
         
-        if (!activityId || !action) {
+        // 解析二维码内容
+        const [activityIdStr, actionStr] = qrContent.split(',');
+        
+        if (!activityIdStr || !actionStr) {
             scanStatus.textContent = '二维码格式错误';
+            return;
+        }
+        
+        // 提取活动ID
+        const activityIdMatch = activityIdStr.match(/activity-(\d+)/);
+        if (!activityIdMatch) {
+            scanStatus.textContent = '二维码格式错误，活动ID无效';
+            return;
+        }
+        const activityId = parseInt(activityIdMatch[1]);
+        
+        // 提取操作类型，处理带有时间戳的情况（如signIn-1234567890）
+        let action;
+        if (actionStr.startsWith('signIn')) {
+            action = 'signIn';
+        } else if (actionStr.startsWith('signOut')) {
+            action = 'signOut';
+        } else {
+            scanStatus.textContent = '二维码格式错误，操作类型无效';
             return;
         }
         

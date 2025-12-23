@@ -208,8 +208,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
             return errorResponse(res, '活动不存在', 404);
         }
         
-        // 动态计算已报名人数
-        const registeredCount = await activity.countParticipants(['approved', 'pending']);
+        // 动态计算已报名人数（只统计审核通过的）
+        const registeredCount = await activity.countParticipants(['approved']);
         
         // 将计算结果添加到活动对象中
         const activityData = activity.toJSON();
@@ -438,7 +438,29 @@ router.put('/:id/approve/:userId', authMiddleware, roleMiddleware(['organizer', 
             return res.status(404).json({ message: '报名记录不存在' });
         }
 
-        await registration.update({ status: 'approved' });
+        // 获取活动信息
+        const activity = await Activity.findByPk(req.params.id);
+        if (!activity) {
+            return res.status(404).json({ message: '活动不存在' });
+        }
+
+        // 更新报名状态
+        await registration.update({
+            status: 'approved',
+            approvedBy: req.user.id,
+            approvedAt: new Date(),
+            approvalComment: req.body.comment || ''
+        });
+
+        // 发送系统通知给志愿者
+        await Notification.create({
+            userId: req.params.userId,
+            title: '活动报名审核通过',
+            content: `您报名的活动"${activity.title}"已通过审核，您已成功成为该活动的参与者。\n审核备注：${req.body.comment || '无'}`,
+            type: 'activity',
+            relatedId: req.params.id
+        });
+
         res.status(200).json({ message: '审核通过' });
     } catch (error) {
         res.status(500).json({ message: '审核失败', error: error.message });
@@ -1173,7 +1195,21 @@ router.put('/:id/participants/:userId/reject', authMiddleware, roleMiddleware(['
         }
 
         // 更新报名状态为拒绝
-        await participant.update({ status: 'rejected' });
+        await participant.update({
+            status: 'rejected',
+            approvedBy: req.user.id,
+            approvedAt: new Date(),
+            approvalComment: req.body.comment || ''
+        });
+
+        // 发送系统通知给志愿者
+        await Notification.create({
+            userId: req.params.userId,
+            title: '活动报名审核未通过',
+            content: `您报名的活动"${activity.title}"未通过审核。\n拒绝原因：${req.body.comment || '无'}`,
+            type: 'activity',
+            relatedId: req.params.id
+        });
 
         res.status(200).json({ message: '报名已拒绝' });
     } catch (error) {
@@ -1194,7 +1230,7 @@ router.put('/:id/participants/batch-approve', authMiddleware, roleMiddleware(['o
             return res.status(403).json({ message: '无权操作该活动' });
         }
 
-        const { userIds } = req.body;
+        const { userIds, comment } = req.body;
         
         if (!userIds || !Array.isArray(userIds)) {
             return res.status(400).json({ message: '请提供有效的用户ID列表' });
@@ -1202,7 +1238,12 @@ router.put('/:id/participants/batch-approve', authMiddleware, roleMiddleware(['o
 
         // 批量更新报名状态为通过
         await ActivityParticipant.update(
-            { status: 'approved' },
+            {
+                status: 'approved',
+                approvedBy: req.user.id,
+                approvedAt: new Date(),
+                approvalComment: comment || ''
+            },
             {
                 where: {
                     activityId: req.params.id,
@@ -1212,6 +1253,16 @@ router.put('/:id/participants/batch-approve', authMiddleware, roleMiddleware(['o
                 }
             }
         );
+
+        // 批量发送系统通知给志愿者
+        const notifications = userIds.map(userId => ({
+            userId,
+            title: '活动报名审核通过',
+            content: `您报名的活动"${activity.title}"已通过审核，您已成功成为该活动的参与者。\n审核备注：${comment || '无'}`,
+            type: 'activity',
+            relatedId: req.params.id
+        }));
+        await Notification.bulkCreate(notifications);
 
         res.status(200).json({ message: '批量审核通过成功' });
     } catch (error) {
@@ -1232,7 +1283,7 @@ router.put('/:id/participants/batch-reject', authMiddleware, roleMiddleware(['or
             return res.status(403).json({ message: '无权操作该活动' });
         }
 
-        const { userIds } = req.body;
+        const { userIds, comment } = req.body;
         
         if (!userIds || !Array.isArray(userIds)) {
             return res.status(400).json({ message: '请提供有效的用户ID列表' });
@@ -1240,7 +1291,12 @@ router.put('/:id/participants/batch-reject', authMiddleware, roleMiddleware(['or
 
         // 批量更新报名状态为拒绝
         await ActivityParticipant.update(
-            { status: 'rejected' },
+            {
+                status: 'rejected',
+                approvedBy: req.user.id,
+                approvedAt: new Date(),
+                approvalComment: comment || ''
+            },
             {
                 where: {
                     activityId: req.params.id,
@@ -1250,6 +1306,16 @@ router.put('/:id/participants/batch-reject', authMiddleware, roleMiddleware(['or
                 }
             }
         );
+
+        // 批量发送系统通知给志愿者
+        const notifications = userIds.map(userId => ({
+            userId,
+            title: '活动报名审核未通过',
+            content: `您报名的活动"${activity.title}"未通过审核。\n拒绝原因：${comment || '无'}`,
+            type: 'activity',
+            relatedId: req.params.id
+        }));
+        await Notification.bulkCreate(notifications);
 
         res.status(200).json({ message: '批量拒绝成功' });
     } catch (error) {
@@ -1706,7 +1772,7 @@ router.delete('/:id/trainings/:trainingId', authMiddleware, roleMiddleware(['org
     }
 });
 
-// 获取活动签到二维码
+// 获取活动签到和签退二维码
 router.get('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin']), async (req, res) => {
     try {
         const activity = await Activity.findByPk(req.params.id);
@@ -1721,17 +1787,20 @@ router.get('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin'])
 
         res.status(200).json({
             message: '获取二维码成功',
-            qrCode: activity.qrCode || null
+            signInQrCode: activity.qrCode || null,
+            signOutQrCode: activity.signOutQrCode || null
         });
     } catch (error) {
         res.status(500).json({ message: '获取二维码失败', error: error.message });
     }
 });
 
-// 生成活动签到二维码
+// 生成活动二维码（签到/签退）
 router.post('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin']), async (req, res) => {
     try {
+        const { type = 'signIn' } = req.body;
         const activity = await Activity.findByPk(req.params.id);
+        
         if (!activity) {
             return res.status(404).json({ message: '活动不存在' });
         }
@@ -1741,28 +1810,38 @@ router.post('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin']
             return res.status(403).json({ message: '无权修改该活动' });
         }
 
-        // 生成签到URL，添加时间戳确保每次生成的URL唯一
-        const signInUrl = `${req.protocol}://${req.get('host')}/api/activities/${activity.id}/signin?t=${Date.now()}`;
+        // 验证二维码类型
+        if (!['signIn', 'signOut'].includes(type)) {
+            return res.status(400).json({ message: '无效的二维码类型，支持的类型：signIn, signOut' });
+        }
+
+        // 生成二维码内容，格式：activity-{id},{type}-{timestamp}
+        const qrContent = `activity-${activity.id},${type}-${Date.now()}`;
         
         // 生成二维码
-        const qrCodeDataUrl = await qrcode.toDataURL(signInUrl);
+        const qrCodeDataUrl = await qrcode.toDataURL(qrContent);
         
         // 更新活动二维码
-        await activity.update({ qrCode: qrCodeDataUrl });
+        const updateData = {};
+        updateData[type === 'signIn' ? 'qrCode' : 'signOutQrCode'] = qrCodeDataUrl;
+        
+        await activity.update(updateData);
         
         res.status(200).json({ 
-            message: '二维码生成成功', 
-            qrCode: qrCodeDataUrl
+            message: `${type === 'signIn' ? '签到' : '签退'}二维码生成成功`, 
+            [type === 'signIn' ? 'signInQrCode' : 'signOutQrCode']: qrCodeDataUrl
         });
     } catch (error) {
         res.status(500).json({ message: '二维码生成失败', error: error.message });
     }
 });
 
-// 更新活动签到二维码
+// 更新活动二维码（签到/签退）
 router.put('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin']), async (req, res) => {
     try {
+        const { type = 'signIn' } = req.body;
         const activity = await Activity.findByPk(req.params.id);
+        
         if (!activity) {
             return res.status(404).json({ message: '活动不存在' });
         }
@@ -1772,28 +1851,38 @@ router.put('/:id/qrcode', authMiddleware, roleMiddleware(['organizer', 'admin'])
             return res.status(403).json({ message: '无权修改该活动' });
         }
 
-        // 生成新的签到URL，添加时间戳确保每次生成的URL唯一
-        const signInUrl = `${req.protocol}://${req.get('host')}/api/activities/${activity.id}/signin?t=${Date.now()}`;
+        // 验证二维码类型
+        if (!['signIn', 'signOut'].includes(type)) {
+            return res.status(400).json({ message: '无效的二维码类型，支持的类型：signIn, signOut' });
+        }
+
+        // 生成新的二维码内容，格式：activity-{id},{type}-{timestamp}
+        const qrContent = `activity-${activity.id},${type}-${Date.now()}`;
         
         // 生成新的二维码
-        const qrCodeDataUrl = await qrcode.toDataURL(signInUrl);
+        const qrCodeDataUrl = await qrcode.toDataURL(qrContent);
         
         // 更新活动二维码
-        await activity.update({ qrCode: qrCodeDataUrl });
+        const updateData = {};
+        updateData[type === 'signIn' ? 'qrCode' : 'signOutQrCode'] = qrCodeDataUrl;
+        
+        await activity.update(updateData);
         
         res.status(200).json({ 
-            message: '二维码更新成功', 
-            qrCode: qrCodeDataUrl
+            message: `${type === 'signIn' ? '签到' : '签退'}二维码更新成功`, 
+            [type === 'signIn' ? 'signInQrCode' : 'signOutQrCode']: qrCodeDataUrl
         });
     } catch (error) {
         res.status(500).json({ message: '二维码更新失败', error: error.message });
     }
 });
 
-// 禁用活动签到二维码
+// 禁用活动二维码（签到/签退/全部）
 router.post('/:id/qrcode/disable', authMiddleware, roleMiddleware(['organizer', 'admin']), async (req, res) => {
     try {
+        const { type = 'all' } = req.body;
         const activity = await Activity.findByPk(req.params.id);
+        
         if (!activity) {
             return res.status(404).json({ message: '活动不存在' });
         }
@@ -1803,11 +1892,24 @@ router.post('/:id/qrcode/disable', authMiddleware, roleMiddleware(['organizer', 
             return res.status(403).json({ message: '无权修改该活动' });
         }
 
+        // 验证二维码类型
+        if (!['signIn', 'signOut', 'all'].includes(type)) {
+            return res.status(400).json({ message: '无效的二维码类型，支持的类型：signIn, signOut, all' });
+        }
+
         // 清空活动二维码
-        await activity.update({ qrCode: null });
+        const updateData = {};
+        if (type === 'signIn' || type === 'all') {
+            updateData.qrCode = null;
+        }
+        if (type === 'signOut' || type === 'all') {
+            updateData.signOutQrCode = null;
+        }
+        
+        await activity.update(updateData);
         
         res.status(200).json({ 
-            message: '二维码已禁用'
+            message: `${type === 'all' ? '所有二维码' : type === 'signIn' ? '签到二维码' : '签退二维码'}已禁用`
         });
     } catch (error) {
         res.status(500).json({ message: '二维码禁用失败', error: error.message });
