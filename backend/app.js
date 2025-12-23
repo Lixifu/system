@@ -23,8 +23,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 const sequelize = require('./config/db');
 const models = require('./models');
 
-// 注释掉数据库同步，避免自动创建索引导致的问题
-/* sequelize.sync({
+// 数据库同步，自动更新表结构
+sequelize.sync({
     force: false, // 设置为false，保留现有表结构，避免数据丢失
     alter: true   // 启用alter选项，自动更新表结构
 })
@@ -35,7 +35,7 @@ const models = require('./models');
     logger.error('数据库同步失败:', error);
     // 开发阶段不退出进程，允许继续运行
     logger.info('继续运行应用程序...');
-}); */
+});
 
 // 路由配置
 const authRoutes = require('./routes/auth');

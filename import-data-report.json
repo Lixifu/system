@@ -1,0 +1,151 @@
+{
+  "basicInfo": {
+    "startTime": "2025-12-23T11:19:36.315Z",
+    "endTime": "2025-12-23T11:19:36.437Z",
+    "duration": 122,
+    "database": "volunteer_management_system"
+  },
+  "summary": {
+    "totalFiles": 12,
+    "successFiles": 12,
+    "failedFiles": 0,
+    "totalRecords": 22,
+    "successRecords": 22,
+    "failedRecords": 0,
+    "successRate": "100.00%"
+  },
+  "fileReports": [
+    {
+      "fileName": "User.json",
+      "modelName": "User",
+      "totalRecords": 8,
+      "successRecords": 8,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.365Z",
+      "endTime": "2025-12-23T11:19:36.380Z"
+    },
+    {
+      "fileName": "Organization.json",
+      "modelName": "Organization",
+      "totalRecords": 2,
+      "successRecords": 2,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.380Z",
+      "endTime": "2025-12-23T11:19:36.383Z"
+    },
+    {
+      "fileName": "Skill.json",
+      "modelName": "Skill",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.383Z",
+      "endTime": "2025-12-23T11:19:36.383Z"
+    },
+    {
+      "fileName": "Medal.json",
+      "modelName": "Medal",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.383Z",
+      "endTime": "2025-12-23T11:19:36.384Z"
+    },
+    {
+      "fileName": "Activity.json",
+      "modelName": "Activity",
+      "totalRecords": 5,
+      "successRecords": 5,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.384Z",
+      "endTime": "2025-12-23T11:19:36.394Z"
+    },
+    {
+      "fileName": "Training.json",
+      "modelName": "Training",
+      "totalRecords": 4,
+      "successRecords": 4,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.394Z",
+      "endTime": "2025-12-23T11:19:36.404Z"
+    },
+    {
+      "fileName": "ActivityTraining.json",
+      "modelName": "ActivityTraining",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.404Z",
+      "endTime": "2025-12-23T11:19:36.405Z"
+    },
+    {
+      "fileName": "UserSkill.json",
+      "modelName": "UserSkill",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.405Z",
+      "endTime": "2025-12-23T11:19:36.405Z"
+    },
+    {
+      "fileName": "UserMedal.json",
+      "modelName": "UserMedal",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.405Z",
+      "endTime": "2025-12-23T11:19:36.406Z"
+    },
+    {
+      "fileName": "ActivityParticipant.json",
+      "modelName": "ActivityParticipant",
+      "totalRecords": 1,
+      "successRecords": 1,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.406Z",
+      "endTime": "2025-12-23T11:19:36.412Z"
+    },
+    {
+      "fileName": "TrainingParticipant.json",
+      "modelName": "TrainingParticipant",
+      "totalRecords": 0,
+      "successRecords": 0,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.412Z",
+      "endTime": "2025-12-23T11:19:36.413Z"
+    },
+    {
+      "fileName": "Notification.json",
+      "modelName": "Notification",
+      "totalRecords": 2,
+      "successRecords": 2,
+      "failedRecords": 0,
+      "failedReasons": [],
+      "status": "success",
+      "startTime": "2025-12-23T11:19:36.413Z",
+      "endTime": "2025-12-23T11:19:36.422Z"
+    }
+  ]
+}

@@ -71,6 +71,33 @@ const Activity = sequelize.define('Activity', {
         defaultValue: 'draft',
         comment: '活动状态'
     },
+    reviewStatus: {
+        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        defaultValue: 'pending',
+        field: 'review_status',
+        comment: '审核状态'
+    },
+    reviewerId: {
+        type: DataTypes.INTEGER,
+        field: 'reviewer_id',
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: '审核管理员ID'
+    },
+    reviewTime: {
+        type: DataTypes.DATE,
+        field: 'review_time',
+        comment: '审核时间'
+    },
+    rejectReason: {
+        type: DataTypes.TEXT,
+        field: 'reject_reason',
+        comment: '拒绝原因'
+    },
     qrCode: {
         type: DataTypes.TEXT,
         field: 'qr_code',
@@ -139,7 +166,13 @@ const Activity = sequelize.define('Activity', {
         // 用于快速查询特定组织的活动
         { fields: ['organization_id'] },
         // 用于快速查询特定状态的活动
-        { fields: ['status'] }
+        { fields: ['status'] },
+        // 用于快速查询特定审核状态的活动
+        { fields: ['review_status'] },
+        // 用于快速查询特定审核时间的活动
+        { fields: ['review_time'] },
+        // 复合索引，用于快速查询待审核活动
+        { fields: ['review_status', 'created_at'] }
     ]
 });
 

@@ -111,6 +111,17 @@
                         <label for="register-password">密码</label>
                         <input type="password" id="register-password" name="password" required>
                     </div>
+                    <div class="form-group">
+                        <label for="register-role">用户类型</label>
+                        <select id="register-role" name="role" class="form-control">
+                            <option value="volunteer" selected>志愿者</option>
+                            <option value="organizer">组织者</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="organization-name-group" style="display: none;">
+                        <label for="register-organization">组织名称</label>
+                        <input type="text" id="register-organization" name="organizationName">
+                    </div>
 
                     <button type="submit" class="btn btn-primary btn-block">注册</button>
                 </form>
@@ -301,6 +312,17 @@
                 <div class="form-group">
                     <label for="registerPassword">密码</label>
                     <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerRole">用户类型</label>
+                    <select id="registerRole" name="role" class="form-control">
+                        <option value="volunteer" selected>志愿者</option>
+                        <option value="organizer">组织者</option>
+                    </select>
+                </div>
+                <div class="form-group" id="registerModalOrganizationGroup" style="display: none;">
+                    <label for="registerModalOrganization">组织名称</label>
+                    <input type="text" id="registerModalOrganization" name="organizationName">
                 </div>
 
                 <div class="form-group">

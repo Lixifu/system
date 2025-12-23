@@ -1,18 +1,22 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 
-// 认证中间件
+// 认证中间件（可选）
 const authMiddleware = (req, res, next) => {
     // 从请求头获取令牌
     const authHeader = req.header('Authorization');
     if (!authHeader) {
-        return res.status(401).json({ message: '未提供认证令牌' });
+        // 无令牌，继续执行（允许匿名访问）
+        next();
+        return;
     }
 
     // 提取令牌
     const token = authHeader.replace('Bearer ', '');
     if (!token) {
-        return res.status(401).json({ message: '未提供认证令牌' });
+        // 无令牌，继续执行（允许匿名访问）
+        next();
+        return;
     }
 
     try {
@@ -38,8 +42,8 @@ const authMiddleware = (req, res, next) => {
             req.user = testTokens[token];
             next();
         } else {
-            // 不是测试令牌，返回无效令牌错误
-            return res.status(401).json({ message: '无效的认证令牌' });
+            // 令牌无效，但仍允许访问（匿名访问）
+            next();
         }
     }
 };

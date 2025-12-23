@@ -30,10 +30,23 @@ const validate = (req, res, next) => {
 }
 
 // 获取培训列表
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
         // 构建查询条件
         const whereCondition = {};
+        
+        // 根据用户角色过滤
+        if (req.user && req.user.role === 'admin') {
+            // 管理员可以看到所有培训
+        } else if (req.user && req.user.role === 'organizer') {
+            // 组织者只能看到自己创建的培训
+            whereCondition.organizerId = req.user.id;
+        } else {
+            // 普通用户（志愿者）只能看到审核通过的培训
+            whereCondition.status = {
+                [Op.in]: ['recruiting', 'ongoing', 'completed']
+            };
+        }
         
         // 根据标题搜索
         if (req.query.title) {
@@ -113,12 +126,25 @@ router.get('/', async (req, res) => {
 });
 
 // 搜索培训
-router.get('/search', async (req, res) => {
+router.get('/search', authMiddleware, async (req, res) => {
     try {
         const { keyword, type, status, location, startTime, endTime, teacher, organizerName, organizationName, page = 1, limit = 20 } = req.query;
         
         // 构建查询条件
         const whereCondition = {};
+        
+        // 根据用户角色过滤
+        if (req.user && req.user.role === 'admin') {
+            // 管理员可以搜索所有培训
+        } else if (req.user && req.user.role === 'organizer') {
+            // 组织者只能搜索自己创建的培训
+            whereCondition.organizerId = req.user.id;
+        } else {
+            // 普通用户（志愿者）只能搜索审核通过的培训
+            whereCondition.status = {
+                [Op.in]: ['recruiting', 'ongoing', 'completed']
+            };
+        }
         
         // 关键词搜索（标题、描述、地点、讲师）
         if (keyword) {

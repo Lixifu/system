@@ -1,5 +1,5 @@
 const { ValidationError } = require('sequelize');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger').logger;
 const { errorResponse } = require('../utils/responseFormatter');
 
 // 自定义错误类

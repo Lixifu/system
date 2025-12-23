@@ -1,4 +1,5 @@
 // 模型关联文件 - 定义模型之间的关系
+const sequelize = require('../config/db');
 const User = require('./User');
 const Activity = require('./Activity');
 const Training = require('./Training');
@@ -11,6 +12,7 @@ const ActivityTraining = require('./ActivityTraining');
 const Skill = require('./Skill');
 const UserSkill = require('./UserSkill');
 const Notification = require('./Notification');
+const Backup = require('./Backup');
 
 // 定义模型之间的关系
 
@@ -179,8 +181,9 @@ Training.hasMany(TrainingParticipant, {
     as: 'participations'
 });
 
-// 导出所有模型
+// 导出所有模型和sequelize实例
 module.exports = {
+    sequelize,
     User,
     Activity,
     Training,
@@ -192,5 +195,6 @@ module.exports = {
     ActivityTraining,
     Skill,
     UserSkill,
-    Notification
+    Notification,
+    Backup
 };

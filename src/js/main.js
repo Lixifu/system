@@ -1270,7 +1270,7 @@ function stopAdminDashboardRefresh() {
 async function loadActivityReviews() {
     try {
         // 调用后端API获取待审查活动列表
-        const response = await fetch('http://localhost:3001/api/admin/activities/pending-review', {
+        const response = await fetch('http://localhost:3001/api/activities/admin/pending', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1500,15 +1500,15 @@ async function handleReviewActivity(e) {
     
     try {
         // 调用后端API提交审查结果
-        const response = await fetch(`http://localhost:3001/api/admin/activities/${activityId}/review`, {
+        const response = await fetch(`http://localhost:3001/api/activities/admin/${activityId}/review`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify({
-                status: reviewResult === 'approved' ? 'recruiting' : 'rejected',
-                reviewComment: reviewComment
+                reviewStatus: reviewResult,
+                rejectReason: reviewComment
             })
         });
         
@@ -1741,7 +1741,7 @@ async function viewBackupHistory() {
                                 ${backups.length > 0 ? backups.map(backup => `
                                     <tr>
                                         <td style="border: 1px solid #ddd; padding: 8px;">${backup.id}</td>
-                                        <td style="border: 1px solid #ddd; padding: 8px;">${new Date(backup.createdAt).toLocaleString('zh-CN')}</td>
+                                        <td style="border: 1px solid #ddd; padding: 8px;">${new Date(backup.created_at).toLocaleString('zh-CN')}</td>
                                         <td style="border: 1px solid #ddd; padding: 8px;">${backup.status}</td>
                                         <td style="border: 1px solid #ddd; padding: 8px;">${backup.size || '未知'}</td>
                                         <td style="border: 1px solid #ddd; padding: 8px;">
@@ -1853,8 +1853,9 @@ async function generateUserStats() {
         const result = await response.json();
         
         if (response.ok) {
-            alert('用户统计报告已生成，请查看下载链接');
             console.log('用户统计报告:', result.data);
+            // 自动导出用户统计报告
+            await exportUserStats();
         } else {
             console.error('生成用户统计报告失败:', result.message);
             alert(result.message || '生成用户统计报告失败，请稍后重试');
@@ -1879,8 +1880,9 @@ async function generateActivityStats() {
         const result = await response.json();
         
         if (response.ok) {
-            alert('活动统计报告已生成，请查看下载链接');
             console.log('活动统计报告:', result.data);
+            // 自动导出活动统计报告
+            await exportActivityStats();
         } else {
             console.error('生成活动统计报告失败:', result.message);
             alert(result.message || '生成活动统计报告失败，请稍后重试');
@@ -1905,8 +1907,9 @@ async function generateTrainingStats() {
         const result = await response.json();
         
         if (response.ok) {
-            alert('培训统计报告已生成，请查看下载链接');
             console.log('培训统计报告:', result.data);
+            // 自动导出培训统计报告
+            await exportTrainingStats();
         } else {
             console.error('生成培训统计报告失败:', result.message);
             alert(result.message || '生成培训统计报告失败，请稍后重试');
@@ -2013,6 +2016,108 @@ async function exportTrainingData() {
     } catch (error) {
         console.error('导出培训数据失败:', error);
         alert('导出培训数据失败，请稍后重试');
+    }
+}
+
+// 导出用户统计报告
+async function exportUserStats(format = 'csv') {
+    try {
+        // 调用后端API导出用户统计报告
+        const response = await fetch(`http://localhost:3001/api/admin/stats/users/export?format=${format}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            // 处理文件下载
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `user-stats-${new Date().toISOString().slice(0, 10)}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('用户统计报告已生成并自动下载');
+        } else {
+            const result = await response.json();
+            console.error('导出用户统计报告失败:', result.message);
+            alert(result.message || '导出用户统计报告失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('导出用户统计报告失败:', error);
+        alert('导出用户统计报告失败，请稍后重试');
+    }
+}
+
+// 导出活动统计报告
+async function exportActivityStats(format = 'csv') {
+    try {
+        // 调用后端API导出活动统计报告
+        const response = await fetch(`http://localhost:3001/api/admin/stats/activities/export?format=${format}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            // 处理文件下载
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `activity-stats-${new Date().toISOString().slice(0, 10)}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('活动统计报告已生成并自动下载');
+        } else {
+            const result = await response.json();
+            console.error('导出活动统计报告失败:', result.message);
+            alert(result.message || '导出活动统计报告失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('导出活动统计报告失败:', error);
+        alert('导出活动统计报告失败，请稍后重试');
+    }
+}
+
+// 导出培训统计报告
+async function exportTrainingStats(format = 'csv') {
+    try {
+        // 调用后端API导出培训统计报告
+        const response = await fetch(`http://localhost:3001/api/admin/stats/trainings/export?format=${format}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            // 处理文件下载
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `training-stats-${new Date().toISOString().slice(0, 10)}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('培训统计报告已生成并自动下载');
+        } else {
+            const result = await response.json();
+            console.error('导出培训统计报告失败:', result.message);
+            alert(result.message || '导出培训统计报告失败，请稍后重试');
+        }
+    } catch (error) {
+        console.error('导出培训统计报告失败:', error);
+        alert('导出培训统计报告失败，请稍后重试');
     }
 }
 
@@ -2480,7 +2585,7 @@ function createActivity() {
                 <div class="form-group">
                     <label for="activityStatus">活动状态</label>
                     <select id="activityStatus" name="status">
-                        <option value="draft">草稿</option>
+                        <option value="draft" selected>草稿</option>
                         <option value="recruiting">招募中</option>
                         <option value="ongoing">进行中</option>
                         <option value="completed">已结束</option>
@@ -2527,16 +2632,21 @@ async function handleCreateActivity(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    
+    // 转换时间格式为ISO 8601格式
+    const startTime = new Date(formData.get('startTime'));
+    const endTime = new Date(formData.get('endTime'));
+    
     const activityData = {
         title: formData.get('title'),
         description: formData.get('description'),
         type: formData.get('type'),
-        startTime: formData.get('startTime'),
-        endTime: formData.get('endTime'),
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
         location: formData.get('location'),
         quota: parseInt(formData.get('quota')),
         requirements: formData.get('requirements'),
-        status: formData.get('status') || 'draft',
+        status: formData.get('status') || 'draft', // 使用用户选择的活动状态，默认为草稿
         organizationId: 1 // 使用默认组织ID
     };
     
@@ -3110,6 +3220,41 @@ function bindLoginRegisterEvents() {
         });
     }
     
+    // 用户类型选择交互 - 主注册页面
+    const roleRadios = document.querySelectorAll('input[name="role"]');
+    const organizationGroup = document.getElementById('organization-name-group');
+    const registerModalOrganizationGroup = document.getElementById('registerModalOrganizationGroup');
+    
+    function toggleOrganizationField() {
+        // 检查是主注册页面还是模态框
+        const mainRoleSelect = document.getElementById('register-role');
+        const modalRoleSelect = document.getElementById('registerRole');
+        
+        let selectedRole = 'volunteer';
+        if (mainRoleSelect) {
+            selectedRole = mainRoleSelect.value;
+        } else if (modalRoleSelect) {
+            selectedRole = modalRoleSelect.value;
+        }
+        
+        if (selectedRole === 'organizer') {
+            if (organizationGroup) organizationGroup.style.display = 'block';
+            if (registerModalOrganizationGroup) registerModalOrganizationGroup.style.display = 'block';
+        } else {
+            if (organizationGroup) organizationGroup.style.display = 'none';
+            if (registerModalOrganizationGroup) registerModalOrganizationGroup.style.display = 'none';
+        }
+    }
+    
+    // 为主注册页面的下拉选择框添加事件监听器
+    const mainRoleSelect = document.getElementById('register-role');
+    if (mainRoleSelect) {
+        mainRoleSelect.addEventListener('change', toggleOrganizationField);
+    }
+    
+    // 初始化时检查默认选中状态
+    toggleOrganizationField();
+    
     // 切换到注册表单
     const showRegisterLink = document.getElementById('show-register');
     if (showRegisterLink) {
@@ -3175,6 +3320,48 @@ function bindModalEvents() {
             showModal('loginModal');
         };
     }
+    
+    // 模态框中注册表单的提交事件
+    const modalRegisterForm = document.getElementById('registerForm');
+    if (modalRegisterForm) {
+        modalRegisterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleRegister(e);
+        });
+    }
+    
+    // 模态框中用户类型选择交互
+    function initModalRoleInteraction() {
+        // 确保模态框已经显示
+        const modalRoleSelect = document.getElementById('registerRole');
+        const modalOrganizationGroup = document.getElementById('registerModalOrganizationGroup');
+        
+        function toggleModalOrganizationField() {
+            const selectedRole = modalRoleSelect?.value || 'volunteer';
+            if (selectedRole === 'organizer') {
+                if (modalOrganizationGroup) modalOrganizationGroup.style.display = 'block';
+            } else {
+                if (modalOrganizationGroup) modalOrganizationGroup.style.display = 'none';
+            }
+        }
+        
+        // 为模态框中的角色下拉选择框添加事件监听器
+        if (modalRoleSelect) {
+            modalRoleSelect.addEventListener('change', toggleModalOrganizationField);
+        }
+        
+        // 初始化模态框中的组织字段显示
+        toggleModalOrganizationField();
+    }
+    
+    // 当显示注册模态框时初始化角色交互
+    const modalShowRegisterLinks = document.querySelectorAll('[onclick*="registerModal"], #showRegister, #show-register');
+    modalShowRegisterLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            // 延迟执行，确保模态框已经显示
+            setTimeout(initModalRoleInteraction, 100);
+        });
+    });
 }
 
 // 显示模态框
@@ -3537,7 +3724,8 @@ async function handleRegister(e) {
     const phone = formData.get('phone');
     const email = formData.get('email');
     const password = formData.get('password');
-    const role = 'volunteer';
+    const role = formData.get('role') || 'volunteer';
+    const organizationName = formData.get('organizationName');
     
     try {
         // 调用注册API（使用正确的端口3001）
@@ -3551,7 +3739,8 @@ async function handleRegister(e) {
                 phone,
                 email,
                 password,
-                role
+                role,
+                organizationName
             })
         });
         

@@ -8,7 +8,7 @@ module.exports = {
       host: 'localhost',
       port: 3306,
       username: 'root',      // 您的MySQL用户名
-      password: 'Woshiguozitong1', // 您的MySQL密码
+      password: '123456', // 您的MySQL密码
       database: 'volunteer_management_system',
       timezone: '+08:00',
        dialectOptions: {

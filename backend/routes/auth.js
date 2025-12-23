@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
@@ -19,13 +20,43 @@ router.post('/register', async (req, res) => {
             return errorResponse(res, '用户已存在', 400);
         }
 
+        // 处理组织名称 - 只有组织者需要
+        let organizationId = null;
+        if (req.body.role === 'organizer') {
+            if (!req.body.organizationName) {
+                return errorResponse(res, '组织者必须提供组织名称', 400);
+            }
+            
+            // 检查组织名称是否已存在
+            const existingOrganization = await Organization.findOne({
+                where: { name: req.body.organizationName }
+            });
+            
+            if (existingOrganization) {
+                return errorResponse(res, '该组织名称已存在', 400);
+            }
+            
+            // 创建新组织
+            const organization = await Organization.create({
+                name: req.body.organizationName,
+                department: '待定', // 默认值，后续可修改
+                contact: req.body.phone, // 使用注册手机号作为联系电话
+                address: '待定', // 默认值，后续可修改
+                description: '组织描述', // 默认值，后续可修改
+                status: 'pending' // 初始状态为待审核
+            });
+            
+            organizationId = organization.id;
+        }
+        
         // 创建新用户
         const user = await User.create({
             name: req.body.name,
             email: req.body.email,
             phone: req.body.phone,
             password: req.body.password,
-            role: req.body.role || 'volunteer'
+            role: req.body.role || 'volunteer',
+            organizationId: organizationId
         });
 
         // 生成JWT令牌

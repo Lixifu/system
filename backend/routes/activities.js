@@ -10,6 +10,7 @@ const path = require('path');
 const { addDays, addWeeks, addMonths, isBefore, isAfter } = require('date-fns');
 const { body, validationResult } = require('express-validator');
 const { successResponse, paginationResponse, errorResponse } = require('../utils/responseFormatter');
+const logger = require('../utils/logger').logger;
 
 // 活动验证规则
 const activityValidationRules = [
@@ -34,10 +35,26 @@ const validate = (req, res, next) => {
 }
 
 // 获取活动列表
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
         // 构建查询条件
         const whereCondition = {};
+        
+        // 普通用户和志愿者只能看到审核通过的活动（recruiting、ongoing、completed）
+        // 管理员可以看到所有活动
+        // 组织者只能看到自己创建的活动
+        if (req.user && req.user.role === 'admin') {
+            // 管理员可以看到所有活动
+        } else if (req.user && req.user.role === 'organizer') {
+            // 组织者只能看到自己创建的活动
+            whereCondition.organizerId = req.user.id;
+        } else {
+            // 普通用户和志愿者只能看到审核通过的活动
+            whereCondition.status = {
+                [Op.in]: ['recruiting', 'ongoing', 'completed']
+            };
+            whereCondition.reviewStatus = 'approved';
+        }
         
         // 根据标题搜索
         if (req.query.title) {
@@ -110,12 +127,26 @@ router.get('/', async (req, res) => {
 });
 
 // 搜索活动
-router.get('/search', async (req, res) => {
+router.get('/search', authMiddleware, async (req, res) => {
     try {
         const { keyword, type, status, location, startTime, endTime, organizerName, organizationName, page = 1, limit = 20 } = req.query;
         
         // 构建查询条件
         const whereCondition = {};
+        
+        // 根据用户角色过滤
+        if (req.user && req.user.role === 'admin') {
+            // 管理员可以搜索所有活动
+        } else if (req.user && req.user.role === 'organizer') {
+            // 组织者只能搜索自己创建的活动
+            whereCondition.organizerId = req.user.id;
+        } else {
+            // 普通用户（志愿者）只能搜索审核通过的活动
+            whereCondition.status = {
+                [Op.in]: ['recruiting', 'ongoing', 'completed']
+            };
+            whereCondition.reviewStatus = 'approved';
+        }
         
         // 关键词搜索（标题、描述、地点）
         if (keyword) {
@@ -208,6 +239,15 @@ router.get('/:id', authMiddleware, async (req, res) => {
             return errorResponse(res, '活动不存在', 404);
         }
         
+        // 普通用户只能查看审核通过的活动详情
+        // 管理员和组织者可以查看所有活动详情
+        if (req.user.role !== 'admin' && req.user.id !== activity.organizerId) {
+            const approvedStatuses = ['recruiting', 'ongoing', 'completed'];
+            if (!approvedStatuses.includes(activity.status) || activity.reviewStatus !== 'approved') {
+                return errorResponse(res, '活动不存在', 404);
+            }
+        }
+        
         // 动态计算已报名人数（只统计审核通过的）
         const registeredCount = await activity.countParticipants(['approved']);
         
@@ -261,8 +301,51 @@ router.post('/', authMiddleware, roleMiddleware(['organizer', 'admin']), activit
     try {
         // 验证结束时间是否大于开始时间
         if (new Date(req.body.endTime) <= new Date(req.body.startTime)) {
+            logger.warn('创建活动失败：结束时间必须大于开始时间', {
+                userId: req.user.id,
+                requestBody: req.body
+            });
             return errorResponse(res, '活动结束时间必须大于开始时间', 400);
         }
+        
+        // 数据预检查：验证组织是否存在且状态为approved
+        const organization = await Organization.findByPk(req.body.organizationId);
+        if (!organization) {
+            logger.warn('创建活动失败：组织不存在', {
+                userId: req.user.id,
+                organizationId: req.body.organizationId,
+                requestBody: req.body
+            });
+            return errorResponse(res, '创建活动失败：指定的组织不存在', 400);
+        }
+        
+        if (organization.status !== 'approved') {
+            logger.warn('创建活动失败：组织未审核通过', {
+                userId: req.user.id,
+                organizationId: req.body.organizationId,
+                organizationStatus: organization.status,
+                requestBody: req.body
+            });
+            return errorResponse(res, '创建活动失败：指定的组织未审核通过', 400);
+        }
+        
+        // 数据预检查：验证用户是否为有效组织者
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            logger.warn('创建活动失败：用户不存在', {
+                userId: req.user.id,
+                requestBody: req.body
+            });
+            return errorResponse(res, '创建活动失败：当前用户不存在', 400);
+        }
+        
+        // 记录创建活动的请求信息
+        logger.info('尝试创建新活动', {
+            userId: req.user.id,
+            title: req.body.title,
+            type: req.body.type,
+            organizationId: req.body.organizationId
+        });
         
         const activity = await Activity.create({
             title: req.body.title,
@@ -275,12 +358,78 @@ router.post('/', authMiddleware, roleMiddleware(['organizer', 'admin']), activit
             organizerId: req.user.id,
             organizationId: req.body.organizationId,
             status: req.body.status || 'draft',
+            reviewStatus: 'pending', // 初始审核状态为待审核
             requirements: req.body.requirements
         });
 
+        // 记录活动创建成功
+        logger.info('活动创建成功', {
+            activityId: activity.id,
+            title: activity.title,
+            userId: req.user.id
+        });
+
+        // 发送通知给管理员 - 使用try-catch确保通知发送失败不会影响活动创建
+        if (req.user.role !== 'admin') {
+            try {
+                await Notification.create({
+                    userId: 1, // 假设管理员ID为1，实际应从数据库获取
+                    title: '新活动待审核',
+                    content: `组织者${req.user.name}创建了新活动"${activity.title}"，请尽快审核。`,
+                    type: 'activity',
+                    relatedId: activity.id
+                });
+                logger.info('已发送新活动待审核通知', {
+                    activityId: activity.id,
+                    adminId: 1
+                });
+            } catch (notificationError) {
+                // 记录通知发送失败，但不影响活动创建结果
+                logger.warn('发送新活动待审核通知失败', {
+                    activityId: activity.id,
+                    adminId: 1,
+                    error: notificationError.message
+                });
+            }
+        }
+
         successResponse(res, activity, '活动创建成功', 201);
     } catch (error) {
-        errorResponse(res, '创建活动失败', 500, { error: error.message });
+        // 详细记录错误信息
+        logger.error('创建活动失败', {
+            error: error.message,
+            stack: error.stack,
+            userId: req.user.id,
+            requestBody: req.body,
+            errorName: error.name
+        });
+        
+        // 根据错误类型返回更具体的错误信息
+        if (error.name === 'SequelizeValidationError') {
+            const validationErrors = error.errors.map(err => err.message);
+            errorResponse(res, '创建活动失败：数据库验证错误', 400, {
+                errors: validationErrors,
+                errorType: 'validation'
+            });
+        } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+            // 分析外键约束错误，提供更具体的错误信息
+            let detailedMessage = '创建活动失败：关联数据不存在';
+            if (error.message.includes('organizer_id')) {
+                detailedMessage = '创建活动失败：组织者不存在';
+            } else if (error.message.includes('organization_id')) {
+                detailedMessage = '创建活动失败：组织不存在';
+            }
+            errorResponse(res, detailedMessage, 400, {
+                error: error.message,
+                errorType: 'foreignKey',
+                constraint: error.constraint
+            });
+        } else {
+            errorResponse(res, '创建活动失败：服务器内部错误', 500, {
+                error: error.message,
+                errorType: 'internal'
+            });
+        }
     }
 });
 
@@ -291,7 +440,8 @@ router.put('/:id', authMiddleware, roleMiddleware(['organizer', 'admin']), [
     body('startTime').optional().isISO8601().withMessage('活动开始时间格式无效'),
     body('endTime').optional().isISO8601().withMessage('活动结束时间格式无效'),
     body('quota').optional().isInt({ gt: 0 }).withMessage('活动名额必须大于0'),
-    body('organizationId').optional().isInt().withMessage('组织ID必须是数字')
+    body('organizationId').optional().isInt().withMessage('组织ID必须是数字'),
+    body('status').optional().isIn(['draft', 'recruiting', 'ongoing', 'completed', 'cancelled']).withMessage('活动状态无效')
 ], validate, async (req, res) => {
     try {
         const activity = await Activity.findByPk(req.params.id);
@@ -321,7 +471,50 @@ router.put('/:id', authMiddleware, roleMiddleware(['organizer', 'admin']), [
             }
         }
 
-        await activity.update(req.body);
+        // 状态变更业务规则验证
+        if (req.body.status) {
+            // 已结束的活动不可再更改为进行中或招募中状态
+            if (activity.status === 'completed' && ['recruiting', 'ongoing'].includes(req.body.status)) {
+                return errorResponse(res, '已结束的活动不可再更改为进行中或招募中状态', 400);
+            }
+            
+            // 审核通过后，组织者仅可将活动状态从招募中更改为进行中，从进行中更改为已结束
+            if (activity.reviewStatus === 'approved' && req.user.role === 'organizer') {
+                const allowedTransitions = {
+                    'recruiting': ['ongoing'],
+                    'ongoing': ['completed'],
+                    'completed': [],
+                    'draft': ['recruiting']
+                };
+                
+                if (!allowedTransitions[activity.status] || !allowedTransitions[activity.status].includes(req.body.status)) {
+                    return errorResponse(res, '审核通过后，只能从招募中更改为进行中，或从进行中更改为已结束', 400);
+                }
+            }
+        }
+
+        // 如果更新了活动内容（除了状态），重置审核状态为待审核
+        const contentFields = ['title', 'description', 'type', 'startTime', 'endTime', 'location', 'quota', 'requirements', 'images'];
+        const isContentUpdated = contentFields.some(field => req.body[field] !== undefined);
+        
+        const updateData = { ...req.body };
+        if (isContentUpdated && req.user.role !== 'admin') {
+            updateData.reviewStatus = 'pending';
+        }
+
+        await activity.update(updateData);
+        
+        // 如果审核状态变为待审核，发送通知给管理员
+        if (updateData.reviewStatus === 'pending' && req.user.role !== 'admin') {
+            await Notification.create({
+                userId: 1, // 假设管理员ID为1，实际应从数据库获取
+                title: '活动内容已更新，待重新审核',
+                content: `组织者${req.user.name}更新了活动"${activity.title}"，请尽快审核。`,
+                type: 'activity',
+                relatedId: activity.id
+            });
+        }
+
         successResponse(res, activity, '活动更新成功');
     } catch (error) {
         errorResponse(res, '更新活动失败', 500, { error: error.message });
@@ -708,7 +901,7 @@ router.get('/admin/pending', authMiddleware, roleMiddleware(['admin']), async (r
     try {
         const activities = await Activity.findAll({
             where: {
-                status: 'draft' // 假设草稿状态的活动需要审核
+                reviewStatus: 'pending' // 审核状态为待审核的活动
             },
             include: [
                 { model: User, as: 'organizer', attributes: ['id', 'name'] },
@@ -716,28 +909,52 @@ router.get('/admin/pending', authMiddleware, roleMiddleware(['admin']), async (r
             ],
             order: [['createdAt', 'DESC']]
         });
-        res.status(200).json(activities);
+        successResponse(res, activities, '获取待审核活动列表成功');
     } catch (error) {
-        res.status(500).json({ message: '获取待审核活动列表失败', error: error.message });
+        errorResponse(res, '获取待审核活动列表失败', 500, { error: error.message });
     }
 });
 
 // 管理员审核活动
-router.put('/admin/:id/status', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.put('/admin/:id/review', authMiddleware, roleMiddleware(['admin']), [
+    body('reviewStatus').notEmpty().withMessage('审核状态不能为空').isIn(['approved', 'rejected']).withMessage('审核状态无效'),
+    body('rejectReason').optional().isString().withMessage('拒绝原因必须是字符串')
+], validate, async (req, res) => {
     try {
         const activity = await Activity.findByPk(req.params.id);
         if (!activity) {
-            return res.status(404).json({ message: '活动不存在' });
+            return errorResponse(res, '活动不存在', 404);
         }
 
-        // 更新活动状态
+        // 验证审核逻辑
+        if (req.body.reviewStatus === 'rejected' && !req.body.rejectReason) {
+            return errorResponse(res, '拒绝审核必须提供拒绝原因', 400);
+        }
+
+        // 更新活动审核状态和相关信息
         await activity.update({
-            status: req.body.status // 可以是 'recruiting', 'rejected' 等
+            reviewStatus: req.body.reviewStatus,
+            reviewerId: req.user.id,
+            reviewTime: new Date(),
+            rejectReason: req.body.rejectReason,
+            // 如果审核通过，自动将状态设置为招募中
+            status: req.body.reviewStatus === 'approved' ? 'recruiting' : activity.status
         });
 
-        res.status(200).json({ message: '活动审核成功', activity });
+        // 发送通知给活动组织者
+        await Notification.create({
+            userId: activity.organizerId,
+            title: req.body.reviewStatus === 'approved' ? '活动审核通过' : '活动审核未通过',
+            content: req.body.reviewStatus === 'approved' 
+                ? `您创建的活动"${activity.title}"已通过审核，可以在志愿者端显示了。` 
+                : `您创建的活动"${activity.title}"未通过审核。拒绝原因：${req.body.rejectReason}`,
+            type: 'activity',
+            relatedId: activity.id
+        });
+
+        successResponse(res, activity, '活动审核成功');
     } catch (error) {
-        res.status(500).json({ message: '活动审核失败', error: error.message });
+        errorResponse(res, '活动审核失败', 500, { error: error.message });
     }
 });
 
@@ -774,14 +991,26 @@ router.post('/long-term', authMiddleware, roleMiddleware(['organizer', 'admin'])
             organizerId: req.user.id,
             organizationId: req.body.organizationId,
             status: req.body.status || 'draft',
+            reviewStatus: 'pending', // 初始审核状态为待审核
             requirements: req.body.requirements,
             isLongTerm: true,
             recurrence: req.body.recurrence
         });
 
-        res.status(201).json({ message: '长期项目创建成功', activity });
+        // 发送通知给管理员
+        if (req.user.role !== 'admin') {
+            await Notification.create({
+                userId: 1, // 假设管理员ID为1，实际应从数据库获取
+                title: '新长期项目待审核',
+                content: `组织者${req.user.name}创建了新长期项目"${activity.title}"，请尽快审核。`,
+                type: 'activity',
+                relatedId: activity.id
+            });
+        }
+
+        successResponse(res, activity, '长期项目创建成功', 201);
     } catch (error) {
-        res.status(500).json({ message: '创建长期项目失败', error: error.message });
+        errorResponse(res, '创建长期项目失败', 500, { error: error.message });
     }
 });
 
@@ -790,35 +1019,66 @@ router.put('/long-term/:id', authMiddleware, roleMiddleware(['organizer', 'admin
     try {
         const activity = await Activity.findByPk(req.params.id);
         if (!activity) {
-            return res.status(404).json({ message: '长期项目不存在' });
+            return errorResponse(res, '长期项目不存在', 404);
         }
 
         // 检查是否是活动组织者或管理员
         if (activity.organizerId !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ message: '无权修改该长期项目' });
+            return errorResponse(res, '无权修改该长期项目', 403);
         }
 
         // 确保更新的是长期项目
         if (!activity.isLongTerm) {
-            return res.status(400).json({ message: '该活动不是长期项目' });
+            return errorResponse(res, '该活动不是长期项目', 400);
         }
 
-        await activity.update({
-            title: req.body.title,
-            description: req.body.description,
-            type: req.body.type,
-            startTime: req.body.startTime,
-            endTime: req.body.endTime,
-            location: req.body.location,
-            quota: req.body.quota,
-            status: req.body.status,
-            requirements: req.body.requirements,
-            recurrence: req.body.recurrence
-        });
+        // 状态变更业务规则验证
+        if (req.body.status) {
+            // 已结束的活动不可再更改为进行中或招募中状态
+            if (activity.status === 'completed' && ['recruiting', 'ongoing'].includes(req.body.status)) {
+                return errorResponse(res, '已结束的活动不可再更改为进行中或招募中状态', 400);
+            }
+            
+            // 审核通过后，组织者仅可将活动状态从招募中更改为进行中，从进行中更改为已结束
+            if (activity.reviewStatus === 'approved' && req.user.role === 'organizer') {
+                const allowedTransitions = {
+                    'recruiting': ['ongoing'],
+                    'ongoing': ['completed'],
+                    'completed': [],
+                    'draft': ['recruiting']
+                };
+                
+                if (!allowedTransitions[activity.status] || !allowedTransitions[activity.status].includes(req.body.status)) {
+                    return errorResponse(res, '审核通过后，只能从招募中更改为进行中，或从进行中更改为已结束', 400);
+                }
+            }
+        }
 
-        res.status(200).json({ message: '长期项目更新成功', activity });
+        // 如果更新了活动内容（除了状态），重置审核状态为待审核
+        const contentFields = ['title', 'description', 'type', 'startTime', 'endTime', 'location', 'quota', 'requirements', 'images', 'recurrence'];
+        const isContentUpdated = contentFields.some(field => req.body[field] !== undefined);
+        
+        const updateData = { ...req.body };
+        if (isContentUpdated && req.user.role !== 'admin') {
+            updateData.reviewStatus = 'pending';
+        }
+
+        await activity.update(updateData);
+        
+        // 如果审核状态变为待审核，发送通知给管理员
+        if (updateData.reviewStatus === 'pending' && req.user.role !== 'admin') {
+            await Notification.create({
+                userId: 1, // 假设管理员ID为1，实际应从数据库获取
+                title: '长期项目内容已更新，待重新审核',
+                content: `组织者${req.user.name}更新了长期项目"${activity.title}"，请尽快审核。`,
+                type: 'activity',
+                relatedId: activity.id
+            });
+        }
+
+        successResponse(res, activity, '长期项目更新成功');
     } catch (error) {
-        res.status(500).json({ message: '更新长期项目失败', error: error.message });
+        errorResponse(res, '更新长期项目失败', 500, { error: error.message });
     }
 });
 
