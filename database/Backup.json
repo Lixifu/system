@@ -1,0 +1,122 @@
+[
+  {
+    "id": "1195924d-fdd3-403d-94e3-4dd4aae2145b",
+    "filename": "full-backup-2025-12-23T15-18-01-492Z.sql",
+    "path": "C:\\Users\\lbx06\\Desktop\\homework\\软件工程\\system\\backups\\full-backup-2025-12-23T15-18-01-492Z.json",
+    "size": 28805,
+    "status": "completed",
+    "type": "full",
+    "metadata": {
+      "type": "full",
+      "tables": [
+        "activities",
+        "activity_participants",
+        "activity_trainings",
+        "backups",
+        "medals",
+        "notifications",
+        "organizations",
+        "skills",
+        "training_participants",
+        "trainings",
+        "user_medals",
+        "user_skills",
+        "users"
+      ],
+      "version": "1.0",
+      "timestamp": "2025-12-23T15:18:01.497Z"
+    },
+    "created_at": "2025-12-23T15:18:01.000Z",
+    "updated_at": "2025-12-23T15:18:01.000Z"
+  },
+  {
+    "id": "ac7ce46e-a09e-4ab8-accb-c6165ded655a",
+    "filename": "full-backup-2025-12-23T15-42-21-153Z.sql",
+    "path": "C:\\Users\\lbx06\\Desktop\\homework\\软件工程\\system\\backups\\full-backup-2025-12-23T15-42-21-153Z.json",
+    "size": 31906,
+    "status": "completed",
+    "type": "full",
+    "metadata": {
+      "type": "full",
+      "tables": [
+        "activities",
+        "activity_participants",
+        "activity_trainings",
+        "backups",
+        "medals",
+        "notifications",
+        "organizations",
+        "skills",
+        "training_participants",
+        "trainings",
+        "user_medals",
+        "user_skills",
+        "users"
+      ],
+      "version": "1.0",
+      "timestamp": "2025-12-23T15:42:21.158Z"
+    },
+    "created_at": "2025-12-23T15:42:21.000Z",
+    "updated_at": "2025-12-23T15:42:21.000Z"
+  },
+  {
+    "id": "b774d4e5-b304-491d-9ea7-b5cf03891433",
+    "filename": "full-backup-2025-12-23T15-23-33-050Z.sql",
+    "path": "C:\\Users\\lbx06\\Desktop\\homework\\软件工程\\system\\backups\\full-backup-2025-12-23T15-23-33-050Z.json",
+    "size": 30084,
+    "status": "completed",
+    "type": "full",
+    "metadata": {
+      "type": "full",
+      "tables": [
+        "activities",
+        "activity_participants",
+        "activity_trainings",
+        "backups",
+        "medals",
+        "notifications",
+        "organizations",
+        "skills",
+        "training_participants",
+        "trainings",
+        "user_medals",
+        "user_skills",
+        "users"
+      ],
+      "version": "1.0",
+      "timestamp": "2025-12-23T15:23:33.053Z"
+    },
+    "created_at": "2025-12-23T15:23:33.000Z",
+    "updated_at": "2025-12-23T15:23:33.000Z"
+  },
+  {
+    "id": "d606adf8-43df-4e42-90f9-a2fa0cfe1191",
+    "filename": "full-backup-2025-12-23T15-41-25-691Z.sql",
+    "path": "C:\\Users\\lbx06\\Desktop\\homework\\软件工程\\system\\backups\\full-backup-2025-12-23T15-41-25-691Z.json",
+    "size": 30995,
+    "status": "completed",
+    "type": "full",
+    "metadata": {
+      "type": "full",
+      "tables": [
+        "activities",
+        "activity_participants",
+        "activity_trainings",
+        "backups",
+        "medals",
+        "notifications",
+        "organizations",
+        "skills",
+        "training_participants",
+        "trainings",
+        "user_medals",
+        "user_skills",
+        "users"
+      ],
+      "version": "1.0",
+      "timestamp": "2025-12-23T15:41:25.696Z"
+    },
+    "created_at": "2025-12-23T15:41:25.000Z",
+    "updated_at": "2025-12-23T15:41:25.000Z"
+  }
+]
