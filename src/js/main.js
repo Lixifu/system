@@ -2,7 +2,36 @@
 document.addEventListener('DOMContentLoaded', async function() {
     // 初始化页面
     await initPage();
+    
+    // 初始化回到顶部按钮
+    initBackToTop();
 });
+
+// 初始化回到顶部按钮
+function initBackToTop() {
+    const backToTopBtn = document.getElementById('backToTop');
+    
+    // 监听滚动事件
+    window.addEventListener('scroll', () => {
+        // 当滚动距离超过500px时显示按钮，否则隐藏
+        if (window.pageYOffset > 500) {
+            backToTopBtn.classList.add('show');
+        } else {
+            backToTopBtn.classList.remove('show');
+        }
+    });
+    
+    // 点击按钮时平滑滚动到顶部
+    backToTopBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // 平滑滚动到顶部
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+}
 
 // 页面完全加载后（包括外部资源），检查jsQR库是否可用
 window.addEventListener('load', function() {
